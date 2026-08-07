@@ -12,39 +12,40 @@ import hotspotRoutes from './server/routes/hotspotRoutes';
 import dashboardRoutes from './server/routes/dashboardRoutes';
 import notificationRoutes from './server/routes/notificationRoutes';
 
+export const app = express();
+
+// Basic security and parsing
+app.use(helmet({ contentSecurityPolicy: false }));
+app.use(cors());
+app.use(express.json({ limit: '15mb' }));
+app.use(express.urlencoded({ extended: true, limit: '15mb' }));
+
+// Rate limiting for auth routes
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: { error: 'Too many login attempts, please try again later.' }
+});
+
+// Mounting API routes
+app.use('/api', authRoutes);
+app.use('/api/login', authLimiter);
+app.use('/api/register', authLimiter);
+
+app.use('/api/incident', incidentRoutes);
+app.use('/api/incidents', incidentRoutes);
+app.use('/api/sos', sosRoutes);
+app.use('/api/hotspots', hotspotRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/notifications', notificationRoutes);
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', service: 'Women Safety System API', timestamp: new Date().toISOString() });
+});
+
 async function startServer() {
-  const app = express();
   const PORT = 3000;
-
-  // Basic security and parsing
-  app.use(helmet({ contentSecurityPolicy: false }));
-  app.use(cors());
-  app.use(express.json({ limit: '15mb' }));
-  app.use(express.urlencoded({ extended: true, limit: '15mb' }));
-
-  // Rate limiting for auth routes
-  const authLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 100,
-    message: { error: 'Too many login attempts, please try again later.' }
-  });
-
-  // Mounting API routes
-  app.use('/api', authRoutes);
-  app.use('/api/login', authLimiter);
-  app.use('/api/register', authLimiter);
-
-  app.use('/api/incident', incidentRoutes);
-  app.use('/api/incidents', incidentRoutes);
-  app.use('/api/sos', sosRoutes);
-  app.use('/api/hotspots', hotspotRoutes);
-  app.use('/api/dashboard', dashboardRoutes);
-  app.use('/api/notifications', notificationRoutes);
-
-  // Health check endpoint
-  app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', service: 'Women Safety System API', timestamp: new Date().toISOString() });
-  });
 
   // Vite development middleware or static production fallback
   if (process.env.NODE_ENV !== 'production') {
@@ -66,6 +67,10 @@ async function startServer() {
   });
 }
 
-startServer().catch((err) => {
-  console.error('Failed to start server:', err);
-});
+if (!process.env.VERCEL) {
+  startServer().catch((err) => {
+    console.error('Failed to start server:', err);
+  });
+}
+
+export default app;
