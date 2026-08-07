@@ -3,7 +3,6 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import path from 'path';
-import { createServer as createViteServer } from 'vite';
 
 import authRoutes from './server/routes/authRoutes';
 import incidentRoutes from './server/routes/incidentRoutes';
@@ -13,6 +12,9 @@ import dashboardRoutes from './server/routes/dashboardRoutes';
 import notificationRoutes from './server/routes/notificationRoutes';
 
 export const app = express();
+
+// Trust proxy for Vercel & serverless environments
+app.set('trust proxy', 1);
 
 // Basic security and parsing
 app.use(helmet({ contentSecurityPolicy: false }));
@@ -24,6 +26,8 @@ app.use(express.urlencoded({ extended: true, limit: '15mb' }));
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
   message: { error: 'Too many login attempts, please try again later.' }
 });
 
@@ -48,7 +52,8 @@ async function startServer() {
   const PORT = 3000;
 
   // Vite development middleware or static production fallback
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa'
@@ -74,3 +79,4 @@ if (!process.env.VERCEL) {
 }
 
 export default app;
+
