@@ -32,7 +32,7 @@ export const AdminDashboardOverview: React.FC = () => {
         api.getSOSAlerts()
       ]);
       setMetrics(m);
-      setActiveSOS(sosList.filter((s) => s.status === 'ACTIVE' || s.status === 'DISPATCHED'));
+      setActiveSOS((sosList || []).filter((s) => s.status === 'ACTIVE' || s.status === 'DISPATCHED'));
     } catch (e) {
       console.error('Failed loading admin dashboard data:', e);
     } finally {

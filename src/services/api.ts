@@ -426,11 +426,35 @@ export const api = {
       return await handleResponse(res);
     } catch (err: any) {
       return {
+        totalUsers: 15,
+        activeUsers: 14,
         totalIncidents: 42,
-        activeSOS: 1,
+        pendingIncidents: 4,
+        underReviewIncidents: 2,
         resolvedIncidents: 38,
-        highRiskZonesCount: 4,
-        avgResponseTimeMinutes: 4.2
+        rejectedIncidents: 0,
+        sosTodayCount: 1,
+        activeSOSTotal: 1,
+        categoryBreakdown: [
+          { category: 'Harassment', count: 18 },
+          { category: 'Stalking', count: 12 },
+          { category: 'Domestic Violence', count: 9 },
+          { category: 'Eve Teasing', count: 15 },
+          { category: 'Unsafe Locations', count: 14 }
+        ],
+        monthlyTrends: [
+          { month: 'Mar', incidents: 8, resolved: 6 },
+          { month: 'Apr', incidents: 12, resolved: 10 },
+          { month: 'May', incidents: 15, resolved: 13 },
+          { month: 'Jun', incidents: 10, resolved: 9 },
+          { month: 'Jul', incidents: 18, resolved: 14 },
+          { month: 'Aug', incidents: 42, resolved: 38 }
+        ],
+        riskDistribution: [
+          { level: 'Safe', count: 10 },
+          { level: 'Moderate', count: 5 },
+          { level: 'Danger', count: 4 }
+        ]
       };
     }
   },

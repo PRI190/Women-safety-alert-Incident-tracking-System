@@ -25,6 +25,9 @@ const MONO_RED_PALETTE = ['#B91C1C', '#DC2626', '#EF4444', '#F87171', '#FCA5A5',
 export const IncidentAnalyticsCharts: React.FC<AnalyticsChartsProps> = ({ metrics }) => {
   const [copied, setCopied] = useState(false);
 
+  const monthlyTrends = metrics?.monthlyTrends || [];
+  const categoryBreakdown = metrics?.categoryBreakdown || [];
+
   // Solution matrix mapping
   const incidentSolutionMap = [
     { incident: 'Harassment', count: 18, solution: 'Deployed Night Patrol Units & CCTV Monitoring', status: 'Resolved (94%)' },
@@ -78,7 +81,7 @@ Month: ${new Date().toLocaleString('default', { month: 'long', year: 'numeric' }
           </div>
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={metrics.monthlyTrends}>
+              <AreaChart data={monthlyTrends}>
                 <defs>
                   <linearGradient id="incGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#B91C1C" stopOpacity={0.8} />
@@ -111,13 +114,13 @@ Month: ${new Date().toLocaleString('default', { month: 'long', year: 'numeric' }
             </div>
           </div>
           <div className="h-64 w-full flex items-center justify-center">
-            {metrics.categoryBreakdown.length === 0 ? (
+            {categoryBreakdown.length === 0 ? (
               <p className="text-xs text-slate-400">No incident category data recorded.</p>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={metrics.categoryBreakdown}
+                    data={categoryBreakdown}
                     cx="50%"
                     cy="50%"
                     innerRadius={55}
@@ -125,9 +128,9 @@ Month: ${new Date().toLocaleString('default', { month: 'long', year: 'numeric' }
                     paddingAngle={4}
                     dataKey="count"
                     nameKey="category"
-                    label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                    label={({ name, percent }) => `${name} (${((percent || 0) * 100).toFixed(0)}%)`}
                   >
-                    {metrics.categoryBreakdown.map((entry, index) => (
+                    {categoryBreakdown.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={MONO_RED_PALETTE[index % MONO_RED_PALETTE.length]} />
                     ))}
                   </Pie>
