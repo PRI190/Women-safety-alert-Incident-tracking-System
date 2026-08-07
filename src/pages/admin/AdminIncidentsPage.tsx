@@ -15,9 +15,11 @@ import {
   RefreshCw,
   MapPin,
   Clock,
-  ShieldCheck
+  ShieldCheck,
+  Volume2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { AudioVoicePlayer } from '../../components/common/AudioVoicePlayer';
 
 export const AdminIncidentsPage: React.FC = () => {
   const { showToast } = useAuth();
@@ -263,19 +265,19 @@ export const AdminIncidentsPage: React.FC = () => {
               exit={{ opacity: 0, scale: 0.95 }}
               className="bg-white rounded-3xl p-6 md:p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl space-y-6"
             >
-              <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="font-mono text-xs font-bold text-[#6C63FF]">{selectedIncident.id}</span>
+                    <span className="font-mono text-xs font-bold text-[#B91C1C]">{selectedIncident.id}</span>
                     <StatusBadge status={selectedIncident.status} />
                   </div>
                   <h3 className="text-xl font-black text-slate-900">{selectedIncident.title}</h3>
                 </div>
                 <button
                   onClick={() => setSelectedIncident(null)}
-                  className="p-1 rounded-xl text-slate-400 hover:text-slate-800"
+                  className="px-3.5 py-2 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 font-extrabold text-xs transition-colors flex items-center gap-1.5 cursor-pointer"
                 >
-                  <X className="w-5 h-5" />
+                  ← Back
                 </button>
               </div>
 
@@ -296,6 +298,15 @@ export const AdminIncidentsPage: React.FC = () => {
                   {selectedIncident.description}
                 </div>
               </div>
+
+              {/* Voice Recording / Message Broadcast Player */}
+              <AudioVoicePlayer
+                transcript={
+                  selectedIncident.audioTranscript ||
+                  `OFFICIAL INCIDENT BROADCAST REPORT: Incident ID ${selectedIncident.id}. Category: ${selectedIncident.category}. Title: ${selectedIncident.title}. Location: ${selectedIncident.location}. Complainant: ${selectedIncident.anonymous ? 'Anonymous User' : selectedIncident.userName}. Report: ${selectedIncident.description}`
+                }
+                title="Complainant Voice Recording / Audio Message"
+              />
 
               {/* Admin Action Form */}
               <form onSubmit={handleUpdateIncident} className="space-y-4 pt-2 border-t border-slate-100">
@@ -345,7 +356,7 @@ export const AdminIncidentsPage: React.FC = () => {
                   <button
                     type="submit"
                     disabled={updating}
-                    className="flex-1 py-3 bg-[#6C63FF] hover:bg-[#574ff0] text-white font-extrabold text-xs rounded-xl shadow-lg transition-colors"
+                    className="flex-1 py-3 bg-[#B91C1C] hover:bg-red-800 text-white font-extrabold text-xs rounded-xl shadow-md transition-colors cursor-pointer"
                   >
                     {updating ? 'Saving Update...' : 'Save & Broadcast Status Update'}
                   </button>

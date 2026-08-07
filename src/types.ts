@@ -5,6 +5,8 @@ export interface User {
   name: string;
   email: string;
   phone: string;
+  dob?: string;
+  address?: string;
   role: UserRole;
   createdAt: string;
   emergencyContacts?: EmergencyContact[];
@@ -34,6 +36,8 @@ export interface Incident {
   userId: string;
   userName?: string;
   userPhone?: string;
+  userDob?: string;
+  userAddress?: string;
   title: string;
   category: IncidentCategory;
   description: string;
@@ -47,6 +51,8 @@ export interface Incident {
   anonymous: boolean;
   assignedOfficer?: string;
   adminNotes?: string;
+  emergencyType?: string;
+  audioTranscript?: string;
   createdAt: string;
   updatedAt?: string;
 }
@@ -56,11 +62,15 @@ export interface SOSAlert {
   userId: string;
   userName: string;
   userPhone: string;
+  userDob?: string;
+  userAddress?: string;
   latitude: number;
   longitude: number;
   locationName: string;
   time: string;
   status: 'ACTIVE' | 'DISPATCHED' | 'RESOLVED' | 'CANCELLED';
+  emergencyType?: 'General SOS' | 'Police (112)' | 'Fire (101)' | 'Medical (108)';
+  audioTranscript?: string;
   resolvedAt?: string;
   notes?: string;
 }

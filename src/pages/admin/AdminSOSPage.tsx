@@ -3,6 +3,7 @@ import { api } from '../../services/api';
 import { SOSAlert } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { ShieldAlert, MapPin, PhoneCall, CheckCircle2, Clock, Volume2, RefreshCw } from 'lucide-react';
+import { AudioVoicePlayer } from '../../components/common/AudioVoicePlayer';
 
 export const AdminSOSPage: React.FC = () => {
   const { showToast } = useAuth();
@@ -125,6 +126,17 @@ export const AdminSOSPage: React.FC = () => {
                       <span className="font-bold text-slate-800">Dispatch Notes:</span> {sos.notes}
                     </div>
                   )}
+
+                  {/* Audio Voice Recording Dispatch Player */}
+                  <div className="pt-1">
+                    <AudioVoicePlayer
+                      transcript={
+                        sos.audioTranscript ||
+                        `AUTOMATED EMERGENCY VOICE DISPATCH: Immediate response required for user ${sos.userName} (Phone: ${sos.userPhone}). Emergency Type: ${sos.emergencyType || 'General SOS'}. Location: ${sos.locationName}. Emergency contacts have been notified.`
+                      }
+                      title={`Voice Dispatch Recording (${sos.emergencyType || 'General SOS'})`}
+                    />
+                  </div>
 
                   {/* Actions */}
                   <div className="pt-2 flex flex-wrap items-center gap-2">

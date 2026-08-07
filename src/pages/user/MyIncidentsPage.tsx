@@ -109,7 +109,7 @@ export const MyIncidentsPage: React.FC = () => {
               <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
                 {filteredIncidents.map((inc) => (
                   <tr key={inc.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="px-6 py-4 font-mono font-bold text-[#6C63FF]">{inc.id}</td>
+                    <td className="px-6 py-4 font-mono font-bold text-[#B91C1C]">{inc.id}</td>
                     <td className="px-6 py-4 font-bold text-slate-900">{inc.category}</td>
                     <td className="px-6 py-4 max-w-xs truncate">{inc.title}</td>
                     <td className="px-6 py-4 max-w-xs truncate">{inc.location}</td>
@@ -122,7 +122,7 @@ export const MyIncidentsPage: React.FC = () => {
                     <td className="px-6 py-4 text-right whitespace-nowrap">
                       <button
                         onClick={() => setSelectedIncident(inc)}
-                        className="px-3 py-1.5 rounded-xl bg-indigo-50 text-[#6C63FF] font-bold text-xs hover:bg-indigo-100 transition-colors flex items-center gap-1 ml-auto"
+                        className="px-3 py-1.5 rounded-xl bg-red-50 text-[#B91C1C] font-bold text-xs hover:bg-red-100 transition-colors flex items-center gap-1 ml-auto cursor-pointer"
                       >
                         <Eye className="w-3.5 h-3.5" /> View Detail
                       </button>
@@ -145,19 +145,19 @@ export const MyIncidentsPage: React.FC = () => {
               exit={{ opacity: 0, scale: 0.95 }}
               className="bg-white rounded-3xl p-6 md:p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl space-y-6"
             >
-              <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="font-mono text-xs font-bold text-[#6C63FF]">{selectedIncident.id}</span>
+                    <span className="font-mono text-xs font-bold text-[#B91C1C]">{selectedIncident.id}</span>
                     <StatusBadge status={selectedIncident.status} />
                   </div>
                   <h3 className="text-xl font-black text-slate-900">{selectedIncident.title}</h3>
                 </div>
                 <button
                   onClick={() => setSelectedIncident(null)}
-                  className="p-1 rounded-xl text-slate-400 hover:text-slate-800"
+                  className="px-3.5 py-2 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 font-extrabold text-xs transition-colors flex items-center gap-1.5 cursor-pointer"
                 >
-                  <X className="w-5 h-5" />
+                  ← Back
                 </button>
               </div>
 

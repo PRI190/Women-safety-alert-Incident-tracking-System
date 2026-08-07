@@ -53,11 +53,18 @@ export const api = {
     return handleResponse(res);
   },
 
-  async updateProfile(data: { name?: string; phone?: string }): Promise<{ message: string; user: User }> {
+  async updateProfile(data: { name?: string; phone?: string; dob?: string; address?: string }): Promise<{ message: string; user: User }> {
     const res = await fetch(`${API_BASE}/profile`, {
       method: 'PUT',
       headers: getAuthHeaders(),
       body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+  },
+
+  async getUsers(): Promise<User[]> {
+    const res = await fetch(`${API_BASE}/users`, {
+      headers: getAuthHeaders()
     });
     return handleResponse(res);
   },
@@ -136,7 +143,7 @@ export const api = {
   },
 
   // SOS
-  async sendSOS(data: { latitude: number; longitude: number; locationName?: string }): Promise<{ message: string; sosAlert: SOSAlert; emergencyContacts: EmergencyContact[] }> {
+  async sendSOS(data: { latitude: number; longitude: number; locationName?: string; emergencyType?: string; audioTranscript?: string }): Promise<{ message: string; sosAlert: SOSAlert; emergencyContacts: EmergencyContact[] }> {
     const res = await fetch(`${API_BASE}/sos`, {
       method: 'POST',
       headers: getAuthHeaders(),

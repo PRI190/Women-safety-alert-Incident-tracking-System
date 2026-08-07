@@ -64,15 +64,15 @@ export const AdminDashboardLayout: React.FC = () => {
       >
         <div className="space-y-6">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2.5 px-2">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#6C63FF] to-[#FF6584] flex items-center justify-center text-white shadow-lg">
+          <Link to="/landing" className="flex items-center gap-2.5 px-2">
+            <div className="w-10 h-10 rounded-2xl bg-[#B91C1C] flex items-center justify-center text-white shadow-lg">
               <ShieldAlert className="w-6 h-6" />
             </div>
             <div>
               <span className="font-extrabold text-base text-white tracking-tight block">
-                SafeGuard<span className="text-[#FF6584]">360</span>
+                SafeGuard<span className="text-[#B91C1C]">112</span>
               </span>
-              <span className="text-[10px] text-[#FF6584] font-bold block uppercase tracking-wider">
+              <span className="text-[10px] text-[#B91C1C] font-bold block uppercase tracking-wider">
                 Admin Command
               </span>
             </div>
@@ -89,9 +89,9 @@ export const AdminDashboardLayout: React.FC = () => {
                   key={item.path}
                   to={item.path}
                   onClick={() => setSidebarOpen(false)}
-                  className={`flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-bold transition-all ${
+                  className={`flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
                     isActive
-                      ? 'bg-[#6C63FF] text-white shadow-lg shadow-[#6C63FF]/30'
+                      ? 'bg-[#B91C1C] text-white shadow-md'
                       : 'text-slate-400 hover:text-white hover:bg-slate-800'
                   }`}
                 >

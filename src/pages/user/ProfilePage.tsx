@@ -1,15 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';
-import { User, PhoneCall, Lock, UserCheck, Plus, Trash2, ShieldCheck } from 'lucide-react';
+import { User, PhoneCall, Lock, UserCheck, Plus, Trash2, Calendar, MapPin, Shield } from 'lucide-react';
 
 export const ProfilePage: React.FC = () => {
   const { user, refreshUser, showToast } = useAuth();
 
   const [profileForm, setProfileForm] = useState({
     name: user?.name || '',
-    phone: user?.phone || ''
+    phone: user?.phone || '',
+    dob: user?.dob || '',
+    address: user?.address || ''
   });
+
+  useEffect(() => {
+    if (user) {
+      setProfileForm({
+        name: user.name || '',
+        phone: user.phone || '',
+        dob: user.dob || '',
+        address: user.address || ''
+      });
+    }
+  }, [user]);
 
   const [passForm, setPassForm] = useState({
     currentPassword: '',
@@ -101,13 +114,45 @@ export const ProfilePage: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       {/* Header */}
-      <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200/80 shadow-xl flex items-center gap-4">
-        <div className="w-16 h-16 rounded-2xl bg-[#6C63FF] text-white font-black text-2xl flex items-center justify-center shadow-lg shadow-[#6C63FF]/30">
-          {user?.name?.charAt(0) || 'U'}
+      <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200/80 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 rounded-2xl bg-[#B91C1C] text-white font-black text-2xl flex items-center justify-center shadow-lg">
+            {user?.name?.charAt(0) || 'U'}
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-black text-slate-900">{user?.name}</h1>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-red-100 text-[#B91C1C] uppercase tracking-wider">
+                {user?.role}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">{user?.email} • ID: <span className="font-mono font-bold text-slate-800">{user?.id}</span></p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-2xl font-black text-slate-900">{user?.name}</h1>
-          <p className="text-xs text-slate-500">{user?.email} • Role: {user?.role.toUpperCase()}</p>
+
+        {/* Profile Details Snapshot */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 w-full md:w-auto text-xs bg-[#FAF8F8] p-3.5 rounded-2xl border border-slate-200/80">
+          <div>
+            <span className="text-[10px] uppercase font-bold text-slate-400 block">Date of Birth</span>
+            <span className="font-bold text-slate-800 flex items-center gap-1 mt-0.5">
+              <Calendar className="w-3.5 h-3.5 text-[#B91C1C]" />
+              {user?.dob || 'Not Set'}
+            </span>
+          </div>
+          <div>
+            <span className="text-[10px] uppercase font-bold text-slate-400 block">Phone Number</span>
+            <span className="font-bold text-slate-800 flex items-center gap-1 mt-0.5">
+              <PhoneCall className="w-3.5 h-3.5 text-[#B91C1C]" />
+              {user?.phone || 'Not Set'}
+            </span>
+          </div>
+          <div className="col-span-2 sm:col-span-1">
+            <span className="text-[10px] uppercase font-bold text-slate-400 block">Registered Address</span>
+            <span className="font-bold text-slate-800 flex items-center gap-1 mt-0.5 truncate max-w-[180px]" title={user?.address}>
+              <MapPin className="w-3.5 h-3.5 text-[#B91C1C]" />
+              {user?.address || 'Not Set'}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -115,34 +160,58 @@ export const ProfilePage: React.FC = () => {
         {/* Edit Profile */}
         <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xl space-y-4">
           <div className="flex items-center gap-2 font-bold text-slate-900 border-b border-slate-100 pb-3">
-            <UserCheck className="w-5 h-5 text-[#6C63FF]" />
+            <UserCheck className="w-5 h-5 text-[#B91C1C]" />
             Edit Profile Information
           </div>
           <form onSubmit={handleUpdateProfile} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Full Name</label>
+              <label className="block text-xs font-bold text-slate-800 mb-1">Full Name</label>
               <input
                 type="text"
                 required
                 value={profileForm.name}
                 onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
-                className="w-full px-4 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-[#6C63FF]"
+                className="w-full px-4 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-[#B91C1C]"
               />
             </div>
+
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Phone Number</label>
+              <label className="block text-xs font-bold text-slate-800 mb-1">Date of Birth (DOB)</label>
+              <input
+                type="text"
+                placeholder="e.g. 1998-08-15"
+                value={profileForm.dob}
+                onChange={(e) => setProfileForm({ ...profileForm, dob: e.target.value })}
+                className="w-full px-4 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-[#B91C1C]"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-800 mb-1">Phone Number</label>
               <input
                 type="tel"
                 required
                 value={profileForm.phone}
                 onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
-                className="w-full px-4 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-[#6C63FF]"
+                className="w-full px-4 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-[#B91C1C]"
               />
             </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-800 mb-1">Address</label>
+              <textarea
+                rows={2}
+                placeholder="Residential Address"
+                value={profileForm.address}
+                onChange={(e) => setProfileForm({ ...profileForm, address: e.target.value })}
+                className="w-full px-4 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-[#B91C1C]"
+              />
+            </div>
+
             <button
               type="submit"
               disabled={loadingProfile}
-              className="w-full py-3 bg-[#6C63FF] text-white font-bold text-xs rounded-xl hover:bg-[#574ff0] transition-colors"
+              className="w-full py-3 bg-[#B91C1C] text-white font-extrabold text-xs rounded-xl hover:bg-red-800 transition-colors shadow-md cursor-pointer"
             >
               {loadingProfile ? 'Saving...' : 'Save Profile Changes'}
             </button>

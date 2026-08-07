@@ -11,8 +11,9 @@ interface Toast {
 interface AuthContextType {
   user: User | null;
   token: string | null;
+  isAuthenticated: boolean;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
   register: (data: any) => Promise<void>;
   logout: () => void;
   demoLoginUser: () => Promise<void>;
@@ -88,7 +89,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => clearInterval(interval);
   }, [token]);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<User> => {
     setLoading(true);
     try {
       const res = await api.login({ email, password });
@@ -96,6 +97,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setToken(res.token);
       setUser(res.user);
       showToast(`Welcome back, ${res.user.name}!`, 'success');
+      return res.user;
     } catch (err: any) {
       showToast(err.message || 'Login failed', 'error');
       throw err;
@@ -121,11 +123,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const demoLoginUser = async () => {
-    await login('priya@example.com', 'Password123!');
+    await login('poiu', '0987');
   };
 
   const demoLoginAdmin = async () => {
-    await login('admin@womensafety.org', 'Password123!');
+    await login('qwer', '1234');
   };
 
   const logout = () => {
@@ -137,12 +139,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
+  const isAuthenticated = !!token && !!user;
 
   return (
     <AuthContext.Provider
       value={{
         user,
         token,
+        isAuthenticated,
         loading,
         login,
         register,

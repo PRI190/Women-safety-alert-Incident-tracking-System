@@ -7,8 +7,12 @@ const router = Router();
 // POST /api/sos
 router.post('/', authenticateToken, (req: AuthRequest, res: Response) => {
   try {
-    const { latitude, longitude, locationName } = req.body;
+    const { latitude, longitude, locationName, emergencyType, audioTranscript } = req.body;
     const user = db.get('users').find((u) => u.id === req.user?.id);
+
+    const typeLabel = emergencyType || 'General SOS';
+    const locStr = locationName || 'Captured Geolocation Marker';
+    const defaultTranscript = `AUTOMATED EMERGENCY VOICE DISPATCH: Attention! Urgent distress signal received from ${user?.name || req.user!.name} (DOB: ${user?.dob || 'N/A'}, Phone: ${user?.phone || 'N/A'}, Address: ${user?.address || 'N/A'}). Emergency Service Requested: ${typeLabel}. Current Location: ${locStr} [Lat: ${Number(latitude || 8.5241).toFixed(4)}, Long: ${Number(longitude || 76.9366).toFixed(4)}]. Emergency contacts have been auto-notified via SMS and automated call broadcast. Please dispatch immediate responders.`;
 
     const sosAlerts = db.get('sosAlerts');
     const newSOS: DBSOS = {
@@ -16,12 +20,16 @@ router.post('/', authenticateToken, (req: AuthRequest, res: Response) => {
       userId: req.user!.id,
       userName: user?.name || req.user!.name,
       userPhone: user?.phone || 'N/A',
-      latitude: Number(latitude) || 40.7128,
-      longitude: Number(longitude) || -74.006,
-      locationName: locationName || 'Captured Geolocation Marker',
+      userDob: user?.dob,
+      userAddress: user?.address,
+      latitude: Number(latitude) || 8.5241,
+      longitude: Number(longitude) || 76.9366,
+      locationName: locStr,
       time: new Date().toISOString(),
       status: 'ACTIVE',
-      notes: 'Emergency SOS activated by user device.'
+      emergencyType: typeLabel,
+      audioTranscript: audioTranscript || defaultTranscript,
+      notes: `Emergency alert [${typeLabel}] triggered. Voice message broadcast sent to emergency contacts.`
     };
 
     sosAlerts.unshift(newSOS);
@@ -34,8 +42,8 @@ router.post('/', authenticateToken, (req: AuthRequest, res: Response) => {
     notifications.unshift({
       id: `notif-sos-user-${Date.now()}`,
       userId: req.user!.id,
-      title: 'SOS Emergency Broadcast Active',
-      message: `Emergency signal sent! Contacts and safety command center notified with your coordinates (${newSOS.latitude.toFixed(4)}, ${newSOS.longitude.toFixed(4)}).`,
+      title: `🚨 ${typeLabel.toUpperCase()} Emergency Alert Transmitted`,
+      message: `Emergency signal sent! Your 2 emergency contacts (${(user?.emergencyContacts || []).map((c) => c.name).join(', ') || 'Registered Contacts'}) and emergency dispatch center notified with your live coordinates and automated voice recording.`,
       type: 'sos',
       isRead: false,
       createdAt: new Date().toISOString()
@@ -45,8 +53,8 @@ router.post('/', authenticateToken, (req: AuthRequest, res: Response) => {
       notifications.unshift({
         id: `notif-sos-admin-${Date.now()}-${admin.id}`,
         userId: admin.id,
-        title: '🚨 EMERGENCY SOS ALERT DISPATCH REQUIRED',
-        message: `SOS Alert ${newSOS.id} triggered by ${newSOS.userName} (${newSOS.userPhone}) at ${newSOS.locationName}!`,
+        title: `🚨 ${typeLabel.toUpperCase()} - EMERGENCY DISPATCH REQUIRED`,
+        message: `Alert ${newSOS.id} from ${newSOS.userName} (${newSOS.userPhone}, DOB: ${newSOS.userDob || 'N/A'}). Service: ${typeLabel}. Address: ${newSOS.userAddress || 'N/A'}. Location: ${newSOS.locationName}!`,
         type: 'sos',
         isRead: false,
         createdAt: new Date().toISOString()
@@ -56,7 +64,7 @@ router.post('/', authenticateToken, (req: AuthRequest, res: Response) => {
     db.set('notifications', notifications);
 
     return res.status(201).json({
-      message: 'SOS Alert triggered successfully! Help is on the way.',
+      message: `${typeLabel} alert triggered successfully! Emergency contacts & responders notified.`,
       sosAlert: newSOS,
       emergencyContacts: user?.emergencyContacts || []
     });

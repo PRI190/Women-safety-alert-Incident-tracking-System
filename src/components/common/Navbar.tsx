@@ -37,16 +37,16 @@ export const Navbar: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2.5 group">
-            <div className="w-10 h-10 md:w-11 md:h-11 rounded-2xl bg-gradient-to-tr from-[#6C63FF] via-[#857dff] to-[#FF6584] flex items-center justify-center text-white shadow-md shadow-[#6C63FF]/30 group-hover:scale-105 transition-transform">
+          <Link to="/landing" className="flex items-center gap-2.5 group">
+            <div className="w-10 h-10 md:w-11 md:h-11 rounded-2xl bg-[#B91C1C] flex items-center justify-center text-white shadow-md group-hover:scale-105 transition-transform">
               <ShieldAlert className="w-6 h-6" />
             </div>
             <div>
               <span className="font-extrabold text-base md:text-lg text-slate-900 tracking-tight block leading-tight">
-                SafeGuard<span className="text-[#FF6584]">360</span>
+                SafeGuard<span className="text-[#B91C1C]">112</span>
               </span>
               <span className="text-[10px] text-slate-500 tracking-wide font-medium block uppercase">
-                Women Safety & Incident Portal
+                Women Safety & Emergency Network
               </span>
             </div>
           </Link>
@@ -54,12 +54,20 @@ export const Navbar: React.FC = () => {
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center gap-8">
             <Link
-              to="/"
+              to="/landing"
               className={`text-sm font-semibold transition-colors ${
-                isActive('/') ? 'text-[#6C63FF]' : 'text-slate-600 hover:text-slate-900'
+                isActive('/landing') ? 'text-[#B91C1C]' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               Home
+            </Link>
+            <Link
+              to="/login"
+              className={`text-sm font-semibold transition-colors ${
+                isActive('/login') || isActive('/') ? 'text-[#B91C1C]' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Sign In
             </Link>
             <a
               href="#features"
@@ -68,22 +76,10 @@ export const Navbar: React.FC = () => {
               Features
             </a>
             <a
-              href="#how-it-works"
-              className="text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors"
-            >
-              How It Works
-            </a>
-            <a
               href="#safety-tips"
               className="text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors"
             >
               Safety Tips
-            </a>
-            <a
-              href="#emergency-contacts"
-              className="text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors"
-            >
-              Emergency
             </a>
           </nav>
 
@@ -93,11 +89,11 @@ export const Navbar: React.FC = () => {
             <div className="relative">
               <button
                 onClick={() => setRoleMenuOpen(!roleMenuOpen)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-indigo-50 text-[#6C63FF] border border-indigo-200/80 hover:bg-indigo-100 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-red-50 text-[#B91C1C] border border-red-200/80 hover:bg-red-100 transition-colors cursor-pointer"
               >
                 <Shield className="w-3.5 h-3.5" />
                 <span>
-                  {user ? (user.role === 'admin' ? 'Role: Admin' : 'Role: User') : 'Quick Role Switch'}
+                  {user ? (user.role === 'admin' ? 'Role: Admin' : 'Role: User') : 'Quick Credentials'}
                 </span>
                 <ChevronDown className="w-3 h-3" />
               </button>
@@ -108,30 +104,30 @@ export const Navbar: React.FC = () => {
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 8 }}
-                    className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-200 py-2 z-50 text-xs"
+                    className="absolute right-0 mt-2 w-52 bg-white rounded-2xl shadow-xl border border-slate-200 py-2 z-50 text-xs"
                   >
                     <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                      Testing Role Switch
+                      Login Credentials Info
                     </div>
                     <button
                       onClick={() => {
-                        demoLoginUser();
+                        navigate('/login');
                         setRoleMenuOpen(false);
                       }}
-                      className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-700 font-medium"
+                      className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-700 font-medium cursor-pointer"
                     >
-                      <UserCheck className="w-4 h-4 text-[#6C63FF]" />
-                      Login as User (Priya)
+                      <UserCheck className="w-4 h-4 text-[#B91C1C]" />
+                      User: ID poiu / Pass 0987
                     </button>
                     <button
                       onClick={() => {
-                        demoLoginAdmin();
+                        navigate('/login');
                         setRoleMenuOpen(false);
                       }}
-                      className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-700 font-medium"
+                      className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-700 font-medium cursor-pointer"
                     >
-                      <ShieldAlert className="w-4 h-4 text-[#FF6584]" />
-                      Login as Admin
+                      <ShieldAlert className="w-4 h-4 text-[#B91C1C]" />
+                      Admin: ID qwer / Pass 1234
                     </button>
                   </motion.div>
                 )}
@@ -201,7 +197,7 @@ export const Navbar: React.FC = () => {
                 {/* Dashboard Link */}
                 <Link
                   to={user.role === 'admin' ? '/admin' : '/dashboard'}
-                  className="px-4 py-2 rounded-xl text-xs font-bold bg-[#6C63FF] hover:bg-[#5b52f2] text-white transition-all shadow-md shadow-[#6C63FF]/25 flex items-center gap-1.5"
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-[#B91C1C] hover:bg-red-800 text-white transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
                 >
                   <LayoutDashboard className="w-4 h-4" />
                   {user.role === 'admin' ? 'Admin Panel' : 'Dashboard'}

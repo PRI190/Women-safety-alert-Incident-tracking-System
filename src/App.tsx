@@ -62,8 +62,9 @@ export function App() {
         <ToastContainer />
         <Routes>
           {/* Public Routes */}
-          <Route path="/" element={<LandingPage />} />
+          <Route path="/" element={<LoginPage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/landing" element={<LandingPage />} />
           <Route path="/register" element={<RegisterPage />} />
 
           {/* User Portal Routes */}

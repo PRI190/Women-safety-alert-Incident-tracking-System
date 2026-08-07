@@ -7,6 +7,8 @@ export interface DBUser {
   name: string;
   email: string;
   phone: string;
+  dob?: string;
+  address?: string;
   passwordHash: string;
   role: 'user' | 'admin';
   createdAt: string;
@@ -24,6 +26,8 @@ export interface DBIncident {
   userId: string;
   userName?: string;
   userPhone?: string;
+  userDob?: string;
+  userAddress?: string;
   title: string;
   category: string;
   description: string;
@@ -37,6 +41,8 @@ export interface DBIncident {
   anonymous: boolean;
   assignedOfficer?: string;
   adminNotes?: string;
+  emergencyType?: string;
+  audioTranscript?: string;
   createdAt: string;
   updatedAt?: string;
 }
@@ -46,11 +52,15 @@ export interface DBSOS {
   userId: string;
   userName: string;
   userPhone: string;
+  userDob?: string;
+  userAddress?: string;
   latitude: number;
   longitude: number;
   locationName: string;
   time: string;
   status: 'ACTIVE' | 'DISPATCHED' | 'RESOLVED' | 'CANCELLED';
+  emergencyType?: string;
+  audioTranscript?: string;
   resolvedAt?: string;
   notes?: string;
 }
@@ -89,25 +99,30 @@ const DATA_DIR = path.join(process.cwd(), 'data');
 const DATA_FILE = path.join(DATA_DIR, 'store.json');
 
 function initializeSeedData(): DBData {
-  const defaultPasswordHash = bcrypt.hashSync('Password123!', 10);
+  const adminPasswordHash = bcrypt.hashSync('1234', 10);
+  const userPasswordHash = bcrypt.hashSync('0987', 10);
 
   const users: DBUser[] = [
     {
-      id: 'usr-admin-1',
-      name: 'Safety Admin',
-      email: 'admin@womensafety.org',
+      id: 'qwer',
+      name: 'Command Admin',
+      email: 'admin@safeguard.com',
       phone: '+1 (555) 019-2831',
-      passwordHash: defaultPasswordHash,
+      dob: '1988-04-12',
+      address: 'Police HQ Command Center, Building 4, Central District',
+      passwordHash: adminPasswordHash,
       role: 'admin',
       createdAt: new Date(Date.now() - 30 * 86400000).toISOString(),
       emergencyContacts: []
     },
     {
-      id: 'usr-demo-1',
+      id: 'poiu',
       name: 'Priya Sharma',
-      email: 'priya@example.com',
+      email: 'user@safeguard.com',
       phone: '+1 (555) 839-2041',
-      passwordHash: defaultPasswordHash,
+      dob: '1998-08-15',
+      address: 'Flat 402, Sunshine Heights, Vellayambalam, Trivandrum',
+      passwordHash: userPasswordHash,
       role: 'user',
       createdAt: new Date(Date.now() - 15 * 86400000).toISOString(),
       emergencyContacts: [
@@ -120,11 +135,14 @@ function initializeSeedData(): DBData {
       name: 'Ananya Roy',
       email: 'ananya@example.com',
       phone: '+1 (555) 441-9201',
-      passwordHash: defaultPasswordHash,
+      dob: '1995-11-20',
+      address: 'House No. 12/B, Green Park Extension, Trivandrum',
+      passwordHash: userPasswordHash,
       role: 'user',
       createdAt: new Date(Date.now() - 7 * 86400000).toISOString(),
       emergencyContacts: [
-        { id: 'ec-3', name: 'Rohan Roy (Spouse)', relationship: 'Spouse', phone: '+1 (555) 321-7654', isPrimary: true }
+        { id: 'ec-3', name: 'Rohan Roy (Spouse)', relationship: 'Spouse', phone: '+1 (555) 321-7654', isPrimary: true },
+        { id: 'ec-4', name: 'Kavita Roy (Mother-in-law)', relationship: 'Family', phone: '+1 (555) 654-9870' }
       ]
     }
   ];
