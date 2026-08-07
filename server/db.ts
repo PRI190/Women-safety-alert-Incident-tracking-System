@@ -95,7 +95,7 @@ export interface DBData {
   hotspots: DBHotspot[];
 }
 
-const DATA_DIR = path.join(process.cwd(), 'data');
+const DATA_DIR = process.env.VERCEL ? '/tmp/data' : path.join(process.cwd(), 'data');
 const DATA_FILE = path.join(DATA_DIR, 'store.json');
 
 function initializeSeedData(): DBData {
@@ -350,18 +350,19 @@ class StoreManager {
 
   private loadData(): DBData {
     try {
-      if (!fs.existsSync(DATA_DIR)) {
-        fs.mkdirSync(DATA_DIR, { recursive: true });
-      }
       if (fs.existsSync(DATA_FILE)) {
         const raw = fs.readFileSync(DATA_FILE, 'utf-8');
         return JSON.parse(raw);
       }
     } catch (e) {
-      console.error('Failed reading data file, using fresh seed data:', e);
+      console.warn('Could not read existing data file, initializing seed data:', e);
     }
     const seed = initializeSeedData();
-    this.saveData(seed);
+    try {
+      this.saveData(seed);
+    } catch (e) {
+      console.warn('Could not persist seed data to disk:', e);
+    }
     return seed;
   }
 
@@ -372,7 +373,7 @@ class StoreManager {
       }
       fs.writeFileSync(DATA_FILE, JSON.stringify(dataToSave || this.data, null, 2));
     } catch (e) {
-      console.error('Failed writing data file:', e);
+      console.warn('File write ignored (operating in-memory mode):', e);
     }
   }
 
