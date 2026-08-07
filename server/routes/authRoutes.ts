@@ -58,15 +58,24 @@ router.post('/register', async (req, res) => {
 // POST /api/login
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    let body = req.body;
+    if (typeof body === 'string') {
+      try {
+        body = JSON.parse(body);
+      } catch (e) {}
+    }
+    body = body || {};
 
-    if (!email || !password) {
+    const rawEmail = body.email || body.userId || body.id || body.username || '';
+    const rawPass = body.password || '';
+
+    if (!rawEmail || !rawPass) {
       return res.status(400).json({ error: 'ID/Email and password are required.' });
     }
 
-    const inputLower = String(email).trim().toLowerCase();
-    const passTrim = String(password).trim();
-    const users = db.get('users');
+    const inputLower = String(rawEmail).trim().toLowerCase();
+    const passTrim = String(rawPass).trim();
+    const users = db.get('users') || [];
 
     // Flexible user search
     let user = users.find((u) => {

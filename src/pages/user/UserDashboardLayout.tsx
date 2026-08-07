@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { SOSFloatingButton } from '../../components/common/SOSFloatingButton';
+import { SOSFloatingButton, triggerSOSModal } from '../../components/common/SOSFloatingButton';
 import {
   ShieldAlert,
   LayoutDashboard,
@@ -14,7 +14,8 @@ import {
   LogOut,
   Menu,
   X,
-  ChevronRight
+  ChevronRight,
+  Radio
 } from 'lucide-react';
 
 export const UserDashboardLayout: React.FC = () => {
@@ -49,12 +50,23 @@ export const UserDashboardLayout: React.FC = () => {
           </div>
           <span className="font-extrabold text-sm text-slate-900 tracking-tight">SafeGuard360</span>
         </Link>
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="p-2 rounded-xl text-slate-700 hover:bg-white/50"
-        >
-          {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-        </button>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => triggerSOSModal()}
+            className="px-3 py-1.5 bg-gradient-to-r from-red-600 to-rose-600 text-white rounded-xl text-xs font-black shadow-md flex items-center gap-1 cursor-pointer animate-pulse"
+          >
+            <Radio className="w-3.5 h-3.5" />
+            <span>SOS</span>
+          </button>
+
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="p-2 rounded-xl text-slate-700 hover:bg-white/50"
+          >
+            {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
+        </div>
       </div>
 
       {/* Sidebar Navigation */}
@@ -63,7 +75,7 @@ export const UserDashboardLayout: React.FC = () => {
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="space-y-6">
+        <div className="space-y-5">
           {/* Logo */}
           <Link to="/landing" className="flex items-center gap-2.5 px-2">
             <div className="w-10 h-10 rounded-2xl bg-[#B91C1C] flex items-center justify-center text-white shadow-md">
@@ -78,6 +90,27 @@ export const UserDashboardLayout: React.FC = () => {
               </span>
             </div>
           </Link>
+
+          {/* Dedicated SOS Direct Action Box in Sidebar */}
+          <div className="p-3.5 rounded-2xl bg-gradient-to-br from-red-600 to-rose-700 text-white shadow-lg space-y-2">
+            <div className="flex items-center gap-2 text-xs font-black tracking-wide uppercase">
+              <ShieldAlert className="w-4 h-4 text-white" />
+              <span>EMERGENCY DISPATCH</span>
+            </div>
+            <p className="text-[10px] text-red-100 font-medium leading-tight">
+              Instant 1-Tap alert broadcast to emergency responders & contacts.
+            </p>
+            <button
+              onClick={() => {
+                setSidebarOpen(false);
+                triggerSOSModal();
+              }}
+              className="w-full py-2 bg-white text-red-700 hover:bg-red-50 text-xs font-extrabold rounded-xl shadow-sm transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <Radio className="w-3.5 h-3.5 text-red-600 animate-pulse" />
+              DISPATCH SOS NOW
+            </button>
+          </div>
 
           {/* Navigation Items */}
           <nav className="space-y-1.5 pt-2">

@@ -5,6 +5,10 @@ import { useAuth } from '../../context/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { AudioVoicePlayer } from './AudioVoicePlayer';
 
+export const triggerSOSModal = () => {
+  window.dispatchEvent(new CustomEvent('open-sos-modal'));
+};
+
 export const SOSFloatingButton: React.FC = () => {
   const { user, showToast, fetchNotifications } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
@@ -18,6 +22,18 @@ export const SOSFloatingButton: React.FC = () => {
     name: 'Vellayambalam, Trivandrum (GPS Captured)'
   });
   const [sosResult, setSosResult] = useState<any>(null);
+
+  // Custom event listener so any header/card button can trigger SOS
+  useEffect(() => {
+    const handleCustomOpen = () => {
+      setIsOpen(true);
+      setSosResult(null);
+      setSelectedEmergencyType('General SOS');
+      setCountdown(3);
+    };
+    window.addEventListener('open-sos-modal', handleCustomOpen);
+    return () => window.removeEventListener('open-sos-modal', handleCustomOpen);
+  }, []);
 
   // Capture geolocation when modal opens
   useEffect(() => {
@@ -57,10 +73,6 @@ export const SOSFloatingButton: React.FC = () => {
   }, [countdown, selectedEmergencyType]);
 
   const handleSOSClick = () => {
-    if (!user) {
-      showToast('Please login or select a demo role to send an SOS alert', 'warning');
-      return;
-    }
     setIsOpen(true);
     setSosResult(null);
     setSelectedEmergencyType('General SOS');
@@ -101,20 +113,21 @@ export const SOSFloatingButton: React.FC = () => {
 
   return (
     <>
-      {/* Floating Red SOS Button */}
-      <div className="fixed bottom-6 left-6 z-40">
+      {/* Floating Red SOS Button - Bottom Right Positioned & Unclippable */}
+      <div className="fixed bottom-6 right-6 md:bottom-8 md:right-8 z-[9999] pointer-events-auto">
         <motion.button
           id="btn-floating-sos"
           whileHover={{ scale: 1.08 }}
-          whileTap={{ scale: 0.92 }}
+          whileTap={{ scale: 0.94 }}
           onClick={handleSOSClick}
-          className="relative flex items-center justify-center w-16 h-16 md:w-20 md:h-20 rounded-full bg-gradient-to-r from-red-600 via-rose-600 to-pink-600 text-white font-extrabold shadow-2xl hover:shadow-red-500/50 transition-all border-4 border-white/20 group cursor-pointer"
+          className="relative flex items-center gap-2.5 px-5 py-3.5 md:px-6 md:py-4 rounded-full bg-gradient-to-r from-red-600 via-rose-600 to-pink-600 text-white font-black shadow-2xl hover:shadow-red-500/60 transition-all border-2 border-white/40 group cursor-pointer"
           title="Emergency SOS Button"
         >
           <span className="absolute -inset-1 rounded-full bg-red-500 opacity-75 animate-ping pointer-events-none" />
-          <div className="relative flex flex-col items-center justify-center">
-            <ShieldAlert className="w-7 h-7 md:w-9 md:h-9 group-hover:scale-110 transition-transform" />
-            <span className="text-[10px] md:text-xs tracking-widest font-black uppercase">SOS</span>
+          <ShieldAlert className="w-6 h-6 md:w-7 md:h-7 group-hover:scale-110 transition-transform relative z-10 shrink-0 text-white" />
+          <div className="relative z-10 flex flex-col items-start leading-none">
+            <span className="text-xs md:text-sm font-black tracking-wider uppercase text-white">EMERGENCY SOS</span>
+            <span className="text-[9px] text-red-100 font-bold tracking-tight">1-TAP DISPATCH</span>
           </div>
         </motion.button>
       </div>
@@ -122,7 +135,7 @@ export const SOSFloatingButton: React.FC = () => {
       {/* SOS Modal */}
       <AnimatePresence>
         {isOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md overflow-y-auto">
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}

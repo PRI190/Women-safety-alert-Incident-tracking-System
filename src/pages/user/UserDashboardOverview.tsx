@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';
 import { DashboardMetrics, Incident } from '../../types';
 import { StatusBadge } from '../../components/common/StatusBadge';
+import { triggerSOSModal } from '../../components/common/SOSFloatingButton';
 import {
   FileText,
   Clock,
@@ -14,7 +15,8 @@ import {
   ShieldAlert,
   ArrowRight,
   RefreshCw,
-  PhoneCall
+  PhoneCall,
+  Radio
 } from 'lucide-react';
 
 export const UserDashboardOverview: React.FC = () => {
@@ -63,6 +65,14 @@ export const UserDashboardOverview: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-3 shrink-0">
+            <button
+              onClick={() => triggerSOSModal()}
+              className="px-5 py-3 rounded-2xl bg-gradient-to-r from-red-600 via-rose-600 to-pink-600 hover:from-red-700 hover:to-rose-700 text-white font-black text-xs shadow-lg shadow-red-600/40 transition-all flex items-center gap-2 cursor-pointer animate-pulse"
+            >
+              <Radio className="w-4 h-4" />
+              TRIGGER EMERGENCY SOS
+            </button>
+
             <Link
               to="/dashboard/report"
               className="px-5 py-3 rounded-2xl bg-[#6C63FF] hover:bg-[#584ef0] text-white font-extrabold text-xs shadow-lg shadow-[#6C63FF]/30 transition-all flex items-center gap-2"
