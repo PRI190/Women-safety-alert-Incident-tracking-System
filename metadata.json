@@ -1,0 +1,6 @@
+{
+  "name": "Women Safety Alert & Incident Management System",
+  "description": "Comprehensive women safety system featuring instant SOS alerts, incident reporting, interactive hotspot risk map, complaint tracking, emergency contacts, and real-time admin incident management dashboard.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
