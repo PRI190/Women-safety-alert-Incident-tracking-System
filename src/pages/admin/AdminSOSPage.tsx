@@ -4,6 +4,7 @@ import { SOSAlert } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { ShieldAlert, MapPin, PhoneCall, CheckCircle2, Clock, Volume2, RefreshCw } from 'lucide-react';
 import { AudioVoicePlayer } from '../../components/common/AudioVoicePlayer';
+import { InteractiveEmergencyMap } from '../../components/common/InteractiveEmergencyMap';
 
 export const AdminSOSPage: React.FC = () => {
   const { showToast } = useAuth();
@@ -55,10 +56,19 @@ export const AdminSOSPage: React.FC = () => {
 
         <button
           onClick={loadSOS}
-          className="px-4 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 font-bold text-xs border border-slate-700 flex items-center gap-2"
+          className="px-4 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 font-bold text-xs border border-slate-700 flex items-center gap-2 cursor-pointer"
         >
           <RefreshCw className="w-4 h-4" /> Refresh Calls
         </button>
+      </div>
+
+      {/* Live Map View for SOS Alerts */}
+      <div className="space-y-2">
+        <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+          <MapPin className="w-4 h-4 text-rose-600" />
+          Live SOS Geolocation Radar
+        </h3>
+        <InteractiveEmergencyMap sosAlerts={sosList} height="380px" />
       </div>
 
       {/* SOS List */}

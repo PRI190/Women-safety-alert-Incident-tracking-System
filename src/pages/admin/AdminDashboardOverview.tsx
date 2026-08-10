@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../services/api';
-import { DashboardMetrics, SOSAlert } from '../../types';
+import { DashboardMetrics, SOSAlert, Incident, SafetyHotspot } from '../../types';
 import { IncidentAnalyticsCharts } from '../../components/charts/IncidentAnalyticsCharts';
+import { InteractiveEmergencyMap } from '../../components/common/InteractiveEmergencyMap';
 import {
   Users,
   UserCheck,
@@ -12,12 +13,15 @@ import {
   ArrowRight,
   RefreshCw,
   ShieldAlert,
-  Radio
+  Radio,
+  MapPin
 } from 'lucide-react';
 
 export const AdminDashboardOverview: React.FC = () => {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [activeSOS, setActiveSOS] = useState<SOSAlert[]>([]);
+  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [hotspots, setHotspots] = useState<SafetyHotspot[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -27,12 +31,16 @@ export const AdminDashboardOverview: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [m, sosList] = await Promise.all([
+      const [m, sosList, incList, hsList] = await Promise.all([
         api.getDashboardMetrics(),
-        api.getSOSAlerts()
+        api.getSOSAlerts(),
+        api.getIncidents(),
+        api.getSafetyHotspots()
       ]);
       setMetrics(m);
       setActiveSOS((sosList || []).filter((s) => s.status === 'ACTIVE' || s.status === 'DISPATCHED'));
+      setIncidents(incList || []);
+      setHotspots(hsList || []);
     } catch (e) {
       console.error('Failed loading admin dashboard data:', e);
     } finally {
@@ -154,6 +162,31 @@ export const AdminDashboardOverview: React.FC = () => {
           </div>
           <p className="text-[10px] text-rose-600 font-medium">Emergency signals today</p>
         </div>
+      </div>
+
+      {/* Interactive Live Emergency GPS Map */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="p-2 bg-red-100 text-[#B91C1C] rounded-xl">
+              <MapPin className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-extrabold text-slate-900">Live Incident & GPS Dispatch Map</h2>
+              <p className="text-xs text-slate-500">Realtime tracking of active SOS broadcasts, officer posts, and high-risk zones.</p>
+            </div>
+          </div>
+          <span className="text-xs text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full font-bold border border-emerald-200 hidden sm:inline-block">
+            ● GPS Stream Online
+          </span>
+        </div>
+
+        <InteractiveEmergencyMap
+          incidents={incidents}
+          sosAlerts={activeSOS}
+          hotspots={hotspots}
+          height="480px"
+        />
       </div>
 
       {/* Analytics Charts Component */}

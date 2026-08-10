@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';
-import { DashboardMetrics, Incident } from '../../types';
+import { DashboardMetrics, Incident, SafetyHotspot, SOSAlert } from '../../types';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { triggerSOSModal } from '../../components/common/SOSFloatingButton';
+import { InteractiveEmergencyMap } from '../../components/common/InteractiveEmergencyMap';
 import {
   FileText,
   Clock,
@@ -23,6 +24,8 @@ export const UserDashboardOverview: React.FC = () => {
   const { user } = useAuth();
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [recentIncidents, setRecentIncidents] = useState<Incident[]>([]);
+  const [hotspots, setHotspots] = useState<SafetyHotspot[]>([]);
+  const [sosAlerts, setSosAlerts] = useState<SOSAlert[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -32,12 +35,16 @@ export const UserDashboardOverview: React.FC = () => {
   const loadDashboard = async () => {
     setLoading(true);
     try {
-      const [m, incs] = await Promise.all([
+      const [m, incs, hsList, sosList] = await Promise.all([
         api.getDashboardMetrics(),
-        api.getIncidents({ myOnly: true })
+        api.getIncidents({ myOnly: true }),
+        api.getSafetyHotspots(),
+        api.getSOSAlerts()
       ]);
       setMetrics(m);
       setRecentIncidents(incs.slice(0, 5));
+      setHotspots(hsList || []);
+      setSosAlerts(sosList || []);
     } catch (e) {
       console.error('Failed loading dashboard overview:', e);
     } finally {
@@ -137,6 +144,34 @@ export const UserDashboardOverview: React.FC = () => {
           </div>
           <p className="text-[11px] text-rose-600 font-medium">Emergency signals logged</p>
         </div>
+      </div>
+
+      {/* Real-Time Live Emergency Location Map */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="p-2 bg-indigo-100 text-[#6C63FF] rounded-xl">
+              <MapPin className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-extrabold text-slate-900">Your Live GPS & Safe Corridor Map</h2>
+              <p className="text-xs text-slate-500">Realtime GPS radar tracking, active SOS markers, and nearby police stations.</p>
+            </div>
+          </div>
+          <Link
+            to="/dashboard/hotspots"
+            className="text-xs font-bold text-[#6C63FF] hover:underline flex items-center gap-1"
+          >
+            Full Screen Hotspot Map <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+
+        <InteractiveEmergencyMap
+          incidents={recentIncidents}
+          sosAlerts={sosAlerts}
+          hotspots={hotspots}
+          height="420px"
+        />
       </div>
 
       {/* Recent Activity Table & Quick Shortcuts */}

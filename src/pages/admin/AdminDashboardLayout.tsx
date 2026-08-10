@@ -3,6 +3,7 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { SOSFloatingButton } from '../../components/common/SOSFloatingButton';
 import { ErrorBoundary } from '../../components/common/ErrorBoundary';
+import { AdminSOSAlarmBanner } from '../../components/admin/AdminSOSAlarmBanner';
 import {
   ShieldAlert,
   LayoutDashboard,
@@ -131,6 +132,7 @@ export const AdminDashboardLayout: React.FC = () => {
       {/* Main View Area */}
       <main className="flex-1 p-4 md:p-8 overflow-y-auto max-w-7xl mx-auto w-full">
         <ErrorBoundary>
+          <AdminSOSAlarmBanner />
           <Outlet />
         </ErrorBoundary>
       </main>
