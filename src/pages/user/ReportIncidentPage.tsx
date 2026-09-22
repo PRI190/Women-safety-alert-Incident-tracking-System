@@ -1,8 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { IncidentCategory } from '../../types';
+import { getCachedLocation, requestDeviceLocation, fetchDeviceLocationWithPermission } from '../../utils/geolocation';
+import {
+  fetchCountries,
+  allocateMapLocation,
+  CountryData
+} from '../../services/countriesService';
 import {
   FilePlus,
   MapPin,
@@ -13,7 +19,9 @@ import {
   Send,
   Compass,
   AlertCircle,
-  X
+  X,
+  Globe,
+  Check
 } from 'lucide-react';
 
 export const ReportIncidentPage: React.FC = () => {
@@ -30,13 +38,15 @@ export const ReportIncidentPage: React.FC = () => {
     'Other'
   ];
 
+  const initialCached = getCachedLocation();
+
   const [form, setForm] = useState({
     title: '',
     category: 'Harassment' as IncidentCategory,
     description: '',
-    location: '',
-    latitude: 40.7128,
-    longitude: -74.006,
+    location: initialCached?.areaName || '',
+    latitude: initialCached?.latitude || 28.6139,
+    longitude: initialCached?.longitude || 77.2090,
     date: new Date().toISOString().split('T')[0],
     time: new Date().toTimeString().slice(0, 5),
     image: '',
@@ -46,28 +56,82 @@ export const ReportIncidentPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [gpsLoading, setGpsLoading] = useState(false);
 
-  const handleCaptureGPS = () => {
+  // CountriesNow API Allocation
+  const [countriesList, setCountriesList] = useState<CountryData[]>([]);
+  const [selectedCountry, setSelectedCountry] = useState<string>('India');
+  const [selectedCity, setSelectedCity] = useState<string>('');
+  const [isAllocatingCountry, setIsAllocatingCountry] = useState<boolean>(false);
+  const [allocatedBadge, setAllocatedBadge] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchCountries().then((data) => {
+      setCountriesList(data || []);
+    });
+  }, []);
+
+  const handleApplyCountryAllocation = async () => {
+    if (!selectedCountry) return;
+    setIsAllocatingCountry(true);
+    try {
+      const res = await allocateMapLocation(selectedCountry, selectedCity);
+      if (res) {
+        setForm((prev) => ({
+          ...prev,
+          location: res.displayName,
+          latitude: Number(res.latitude.toFixed(6)),
+          longitude: Number(res.longitude.toFixed(6))
+        }));
+        setAllocatedBadge(res.displayName);
+        showToast(`Allocated location to ${res.displayName}!`, 'success');
+      }
+    } catch {
+      showToast('Failed to allocate region coordinates', 'warning');
+    } finally {
+      setIsAllocatingCountry(false);
+    }
+  };
+
+  // Automatically acquire device live location on page open
+  useEffect(() => {
+    requestDeviceLocation({ highAccuracy: true }).then((loc) => {
+      setForm((prev) => ({
+        ...prev,
+        latitude: Number(loc.latitude.toFixed(6)),
+        longitude: Number(loc.longitude.toFixed(6)),
+        location: prev.location || loc.areaName || `GPS (${loc.latitude.toFixed(4)}, ${loc.longitude.toFixed(4)})`
+      }));
+    });
+  }, []);
+
+  const handleCaptureGPS = async () => {
     setGpsLoading(true);
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setForm((prev) => ({
-            ...prev,
-            latitude: Number(pos.coords.latitude.toFixed(6)),
-            longitude: Number(pos.coords.longitude.toFixed(6)),
-            location: prev.location || `Lat: ${pos.coords.latitude.toFixed(4)}, Lng: ${pos.coords.longitude.toFixed(4)}`
-          }));
-          showToast('GPS coordinates updated successfully!', 'success');
-          setGpsLoading(false);
-        },
-        () => {
-          showToast('Geolocation permission denied or unavailable.', 'warning');
-          setGpsLoading(false);
-        },
-        { enableHighAccuracy: true, timeout: 6000 }
-      );
-    } else {
-      showToast('Geolocation is not supported by your browser.', 'error');
+    try {
+      const result = await fetchDeviceLocationWithPermission({ highAccuracy: true, timeout: 15000 });
+      if (result.success && result.location) {
+        const loc = result.location;
+        setForm((prev) => ({
+          ...prev,
+          latitude: Number(loc.latitude.toFixed(6)),
+          longitude: Number(loc.longitude.toFixed(6)),
+          location: loc.areaName || `GPS (${loc.latitude.toFixed(4)}, ${loc.longitude.toFixed(4)})`
+        }));
+        showToast(
+          `GPS coordinates captured: ${loc.areaName || `${loc.latitude.toFixed(4)}, ${loc.longitude.toFixed(4)}`} (±${Math.round(loc.accuracy)}m)`,
+          'success'
+        );
+      } else {
+        if (result.error === 'permission_denied') {
+          showToast(
+            'Location permission denied. Please allow location access in your browser settings (lock icon in address bar) and retry.',
+            'error'
+          );
+        } else {
+          showToast(result.errorMessage || 'Unable to retrieve device GPS coordinates.', 'warning');
+        }
+      }
+    } catch (err: any) {
+      showToast(err?.message || 'Geolocation error.', 'warning');
+    } finally {
       setGpsLoading(false);
     }
   };
@@ -177,6 +241,86 @@ export const ReportIncidentPage: React.FC = () => {
             placeholder="Describe what occurred, any perpetrator descriptions, vehicle details, or sequence of events..."
             className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-[#6C63FF]"
           />
+        </div>
+
+        {/* CountriesNow Map Allocation Component */}
+        <div className="p-4 bg-indigo-50/70 border border-indigo-200 rounded-2xl space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Globe className="w-4 h-4 text-[#6C63FF]" />
+              <span className="text-xs font-bold text-slate-800">
+                Allocate Location by Country & City (CountriesNow API)
+              </span>
+              <span className="text-[10px] bg-white text-indigo-700 px-2 py-0.5 rounded-full border border-indigo-200 font-mono font-bold">
+                countriesnow.space
+              </span>
+            </div>
+            {allocatedBadge && (
+              <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 flex items-center gap-1">
+                <Check className="w-3 h-3" /> Allocated: {allocatedBadge}
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                Country ({countriesList.length || 'Loading...'})
+              </label>
+              <select
+                value={selectedCountry}
+                onChange={(e) => {
+                  setSelectedCountry(e.target.value);
+                  setSelectedCity('');
+                }}
+                className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#6C63FF] focus:outline-hidden"
+              >
+                {countriesList.map((c, i) => (
+                  <option key={i} value={c.country}>
+                    {c.country} ({c.iso2})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                City (
+                {(
+                  countriesList.find((c) => c.country.toLowerCase() === selectedCountry.toLowerCase())
+                    ?.cities || []
+                ).length}{' '}
+                available)
+              </label>
+              <select
+                value={selectedCity}
+                onChange={(e) => setSelectedCity(e.target.value)}
+                className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#6C63FF] focus:outline-hidden"
+              >
+                <option value="">-- Choose City / Region --</option>
+                {(
+                  countriesList.find((c) => c.country.toLowerCase() === selectedCountry.toLowerCase())
+                    ?.cities || []
+                ).map((ct, idx) => (
+                  <option key={idx} value={ct}>
+                    {ct}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-end">
+              <button
+                type="button"
+                onClick={handleApplyCountryAllocation}
+                disabled={isAllocatingCountry}
+                className="w-full py-2 px-3 bg-[#6C63FF] hover:bg-[#5b52e0] text-white font-bold text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                <Globe className={`w-3.5 h-3.5 ${isAllocatingCountry ? 'animate-spin' : ''}`} />
+                {isAllocatingCountry ? 'Allocating...' : 'Allocate to Form'}
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Location & GPS */}

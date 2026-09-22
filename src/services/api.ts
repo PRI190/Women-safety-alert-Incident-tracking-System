@@ -4,9 +4,11 @@ import {
   SOSAlert,
   NotificationItem,
   HotspotArea,
+  SafetyHotspot,
   DashboardMetrics,
   EmergencyContact
 } from '../types';
+import { getCachedLocation } from '../utils/geolocation';
 
 const API_BASE = '/api';
 
@@ -206,20 +208,31 @@ export const api = {
       });
       return await handleResponse(res);
     } catch (err: any) {
-      return [
+      const cachedLoc = getCachedLocation();
+      const baseLat = cachedLoc?.latitude || 28.6139;
+      const baseLng = cachedLoc?.longitude || 77.2090;
+      const area = cachedLoc?.areaName || 'Local Transit District';
+
+      let userCreated: Incident[] = [];
+      try {
+        const stored = localStorage.getItem('womensafety_user_incidents');
+        if (stored) userCreated = JSON.parse(stored);
+      } catch {}
+
+      const defaults: Incident[] = [
         {
           id: 'INC-2026-001',
           userId: 'poiu',
           userName: 'Priya Sharma',
           userPhone: '+1 800-555-0122',
-          title: 'Suspicious Activity & Harassment at Metro Station',
-          description: 'Two individuals following pedestrians near Exit 2 after 9 PM. Security alerted.',
+          title: 'Suspicious Activity & Following Reported',
+          description: 'Suspicious individual tailing pedestrians near the transit exit after dark.',
           category: 'Harassment',
           status: 'In Progress',
           severity: 'High',
-          locationName: 'Central Metro Exit 2, Downtown',
-          latitude: 28.6139,
-          longitude: 77.2090,
+          locationName: `${area} - North Concourse`,
+          latitude: baseLat + 0.003,
+          longitude: baseLng + 0.004,
           reportedAt: new Date(Date.now() - 3600000).toISOString(),
           assignedOfficer: 'Officer Vikram Singh',
           evidenceUrls: []
@@ -229,19 +242,21 @@ export const api = {
           userId: 'poiu',
           userName: 'Priya Sharma',
           userPhone: '+1 800-555-0122',
-          title: 'Poor Lighting & Broken CCTV Cameras',
-          description: 'Streetlights unlit across 500m stretch near Green Park walkway.',
+          title: 'Defective Street Lighting on Pedestrian Walkway',
+          description: 'Streetlights unlit across 400m stretch. Immediate municipal attention requested.',
           category: 'Infrastructure',
           status: 'Investigating',
           severity: 'Medium',
-          locationName: 'Green Park Outer Lane',
-          latitude: 28.5494,
-          longitude: 77.2001,
+          locationName: `${area} - Outer Ring`,
+          latitude: baseLat - 0.004,
+          longitude: baseLng - 0.003,
           reportedAt: new Date(Date.now() - 86400000).toISOString(),
           assignedOfficer: 'Officer Anita Roy',
           evidenceUrls: []
         }
       ];
+
+      return [...userCreated, ...defaults];
     }
   },
 
@@ -252,11 +267,8 @@ export const api = {
       });
       return await handleResponse(res);
     } catch (err: any) {
-      if (err.message?.includes('404') || err.message?.includes('Failed to fetch')) {
-        const incidents = await api.getIncidents();
-        return incidents.find(i => i.id === id) || incidents[0];
-      }
-      throw err;
+      const incidents = await api.getIncidents();
+      return incidents.find(i => i.id === id) || incidents[0];
     }
   },
 
@@ -269,6 +281,7 @@ export const api = {
       });
       return await handleResponse(res);
     } catch (err: any) {
+      const cachedLoc = getCachedLocation();
       const newIncident: Incident = {
         id: 'INC-' + Date.now().toString(36).toUpperCase(),
         userId: 'poiu',
@@ -279,13 +292,20 @@ export const api = {
         category: data.category || 'General',
         status: 'Reported',
         severity: data.severity || 'Medium',
-        locationName: data.locationName || 'Current Location',
-        latitude: data.latitude || 28.6139,
-        longitude: data.longitude || 77.2090,
+        locationName: data.location || data.locationName || cachedLoc?.areaName || 'Current Location',
+        latitude: data.latitude || cachedLoc?.latitude || 28.6139,
+        longitude: data.longitude || cachedLoc?.longitude || 77.2090,
         reportedAt: new Date().toISOString(),
         assignedOfficer: 'Pending Assignment',
         evidenceUrls: data.evidenceUrls || []
       };
+
+      try {
+        const stored = localStorage.getItem('womensafety_user_incidents');
+        const list = stored ? JSON.parse(stored) : [];
+        localStorage.setItem('womensafety_user_incidents', JSON.stringify([newIncident, ...list]));
+      } catch {}
+
       return { message: 'Incident reported successfully', incident: newIncident };
     }
   },
@@ -327,19 +347,27 @@ export const api = {
       });
       return await handleResponse(res);
     } catch (err: any) {
+      const cachedLoc = getCachedLocation();
       const sosAlert: SOSAlert = {
         id: 'SOS-' + Date.now().toString(36).toUpperCase(),
         userId: 'poiu',
         userName: 'Priya Sharma',
         userPhone: '+1 800-555-0122',
-        latitude: data.latitude,
-        longitude: data.longitude,
-        locationName: data.locationName || 'GPS Location Broadcast',
+        latitude: data.latitude || cachedLoc?.latitude || 28.6139,
+        longitude: data.longitude || cachedLoc?.longitude || 77.2090,
+        locationName: data.locationName || cachedLoc?.areaName || 'Live GPS Location Broadcast',
         emergencyType: data.emergencyType || 'Immediate Danger / Panic Button',
         status: 'Active',
         triggeredAt: new Date().toISOString(),
         audioTranscript: data.audioTranscript
       };
+
+      try {
+        const stored = localStorage.getItem('womensafety_user_sos');
+        const list = stored ? JSON.parse(stored) : [];
+        localStorage.setItem('womensafety_user_sos', JSON.stringify([sosAlert, ...list]));
+      } catch {}
+
       return { message: 'SOS Alert Broadcasted to Emergency Responders', sosAlert, emergencyContacts: MOCK_USER.emergencyContacts };
     }
   },
@@ -351,20 +379,33 @@ export const api = {
       });
       return await handleResponse(res);
     } catch (err: any) {
-      return [
+      const cachedLoc = getCachedLocation();
+      const baseLat = cachedLoc?.latitude || 28.6139;
+      const baseLng = cachedLoc?.longitude || 77.2090;
+      const area = cachedLoc?.areaName || 'Local District Center';
+
+      let userCreated: SOSAlert[] = [];
+      try {
+        const stored = localStorage.getItem('womensafety_user_sos');
+        if (stored) userCreated = JSON.parse(stored);
+      } catch {}
+
+      const defaults: SOSAlert[] = [
         {
           id: 'SOS-ALERT-901',
           userId: 'poiu',
           userName: 'Priya Sharma',
           userPhone: '+1 800-555-0122',
-          latitude: 28.6139,
-          longitude: 77.2090,
-          locationName: 'Connaught Place Circle, New Delhi',
+          latitude: baseLat + 0.002,
+          longitude: baseLng - 0.003,
+          locationName: `${area} Junction`,
           emergencyType: 'Panic SOS Triggered',
           status: 'Active',
           triggeredAt: new Date(Date.now() - 900000).toISOString()
         }
       ];
+
+      return [...userCreated, ...defaults];
     }
   },
 
@@ -384,6 +425,10 @@ export const api = {
     }
   },
 
+  async updateSOSStatus(id: string, status: string, notes?: string): Promise<{ message: string; sos: SOSAlert }> {
+    return this.updateSOS(id, { status, notes });
+  },
+
   // Hotspots
   async getHotspots(): Promise<HotspotArea[]> {
     try {
@@ -392,29 +437,46 @@ export const api = {
       });
       return await handleResponse(res);
     } catch (err: any) {
+      const cachedLoc = getCachedLocation();
+      const baseLat = cachedLoc?.latitude || 28.6139;
+      const baseLng = cachedLoc?.longitude || 77.2090;
+      const area = cachedLoc?.areaName || 'City Center';
+
       return [
         {
           id: 'hs-1',
-          name: 'Central Metro Corridor',
+          name: `${area} - High Density Transit Corridor`,
+          areaName: `${area} Transit Corridor`,
           riskLevel: 'High',
           incidentCount: 14,
-          latitude: 28.6139,
-          longitude: 77.2090,
-          radiusMeters: 500,
+          latitude: baseLat + 0.0045,
+          longitude: baseLng + 0.0035,
+          radiusMeters: 450,
+          primaryCategories: ['Harassment', 'Theft'],
+          safetyTips: ['Avoid unlit transit routes late at night', 'Use designated safe pedestrian lanes'],
+          lastUpdated: new Date().toISOString(),
           lastIncidentDate: new Date().toISOString()
         },
         {
           id: 'hs-2',
-          name: 'Old City Market Walkway',
+          name: `${area} - Market Walkway Caution Zone`,
+          areaName: `${area} Market Walkway`,
           riskLevel: 'Medium',
           incidentCount: 8,
-          latitude: 28.6500,
-          longitude: 77.2300,
+          latitude: baseLat - 0.005,
+          longitude: baseLng + 0.004,
           radiusMeters: 400,
+          primaryCategories: ['Stalking', 'Suspicious Activity'],
+          safetyTips: ['Well-lit main thoroughfares recommended', 'Report streetlight outages'],
+          lastUpdated: new Date().toISOString(),
           lastIncidentDate: new Date(Date.now() - 86400000).toISOString()
         }
       ];
     }
+  },
+
+  async getSafetyHotspots(): Promise<SafetyHotspot[]> {
+    return this.getHotspots() as any;
   },
 
   // Dashboard
@@ -482,6 +544,7 @@ export const api = {
       return [
         {
           id: 'notif-1',
+          userId: 'poiu',
           title: 'Incident Status Updated',
           message: 'Your report INC-2026-001 has been assigned to Officer Vikram Singh.',
           type: 'incident',
@@ -490,6 +553,7 @@ export const api = {
         },
         {
           id: 'notif-2',
+          userId: 'poiu',
           title: 'High Risk Zone Alert',
           message: 'Caution: Increased reported harassment incidents near Metro Exit 2.',
           type: 'alert',

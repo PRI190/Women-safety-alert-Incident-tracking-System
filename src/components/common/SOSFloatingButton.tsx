@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, MapPin, PhoneCall, ShieldAlert, CheckCircle2, Flame, Siren, Stethoscope, Radio } from 'lucide-react';
+import { AlertCircle, MapPin, PhoneCall, ShieldAlert, CheckCircle2, Flame, Siren, Stethoscope, Radio, RefreshCw, LocateFixed } from 'lucide-react';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { AudioVoicePlayer } from './AudioVoicePlayer';
+import { getCachedLocation, requestDeviceLocation, fetchDeviceLocationWithPermission, reverseGeocode } from '../../utils/geolocation';
 
 export const triggerSOSModal = () => {
   window.dispatchEvent(new CustomEvent('open-sos-modal'));
@@ -16,12 +17,41 @@ export const SOSFloatingButton: React.FC = () => {
   const [countdown, setCountdown] = useState<number | null>(null);
   const [selectedEmergencyType, setSelectedEmergencyType] = useState<'General SOS' | 'Police (112)' | 'Fire (101)' | 'Medical (108)'>('General SOS');
   
+  const initialCached = getCachedLocation();
   const [location, setLocation] = useState<{ lat: number; lng: number; name: string }>({
-    lat: 8.5241,
-    lng: 76.9366,
-    name: 'Vellayambalam, Trivandrum (GPS Captured)'
+    lat: initialCached?.latitude || 28.6139,
+    lng: initialCached?.longitude || 77.2090,
+    name: initialCached?.areaName || 'Detecting Live Device Location...'
   });
   const [sosResult, setSosResult] = useState<any>(null);
+  const [isRefreshingLocation, setIsRefreshingLocation] = useState(false);
+
+  const refreshLocationWithPermission = async () => {
+    setIsRefreshingLocation(true);
+    try {
+      const result = await fetchDeviceLocationWithPermission({ highAccuracy: true, timeout: 15000 });
+      if (result.success && result.location) {
+        const loc = result.location;
+        setLocation({
+          lat: loc.latitude,
+          lng: loc.longitude,
+          name: loc.areaName || `GPS (${loc.latitude.toFixed(4)}, ${loc.longitude.toFixed(4)})`
+        });
+        showToast(`📍 Device GPS location locked: ${loc.areaName || `${loc.latitude.toFixed(4)}, ${loc.longitude.toFixed(4)}`}`, 'info');
+      } else if (result.error === 'permission_denied') {
+        showToast('Location permission denied. Please allow location access in your browser settings.', 'warning');
+      }
+    } catch {
+      // Fallback
+    } finally {
+      setIsRefreshingLocation(false);
+    }
+  };
+
+  // Pre-fetch live location on mount
+  useEffect(() => {
+    refreshLocationWithPermission();
+  }, []);
 
   // Custom event listener so any header/card button can trigger SOS
   useEffect(() => {
@@ -30,33 +60,17 @@ export const SOSFloatingButton: React.FC = () => {
       setSosResult(null);
       setSelectedEmergencyType('General SOS');
       setCountdown(3);
+      // Refresh location fresh upon trigger
+      refreshLocationWithPermission();
     };
     window.addEventListener('open-sos-modal', handleCustomOpen);
     return () => window.removeEventListener('open-sos-modal', handleCustomOpen);
   }, []);
 
-  // Capture geolocation when modal opens
+  // Capture fresh geolocation when modal opens
   useEffect(() => {
     if (isOpen && !sosResult) {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            setLocation({
-              lat: pos.coords.latitude,
-              lng: pos.coords.longitude,
-              name: `GPS Location (${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)})`
-            });
-          },
-          () => {
-            setLocation({
-              lat: 8.5241,
-              lng: 76.9366,
-              name: 'Vellayambalam Junction, Central District'
-            });
-          },
-          { enableHighAccuracy: true, timeout: 5000 }
-        );
-      }
+      refreshLocationWithPermission();
     }
   }, [isOpen, sosResult]);
 
@@ -257,12 +271,24 @@ export const SOSFloatingButton: React.FC = () => {
                   </div>
 
                   {/* Location Preview */}
-                  <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 text-xs text-slate-600 space-y-1.5">
-                    <div className="flex items-center gap-1.5 font-bold text-slate-800">
-                      <MapPin className="w-4 h-4 text-[#B91C1C]" />
-                      <span>Live Geolocation Transmitted:</span>
+                  <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 text-xs text-slate-600 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 font-bold text-slate-800">
+                        <MapPin className="w-4 h-4 text-[#B91C1C]" />
+                        <span>Live Geolocation Transmitted:</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={refreshLocationWithPermission}
+                        disabled={isRefreshingLocation}
+                        className="px-2 py-1 bg-slate-200 hover:bg-slate-300 active:scale-95 text-slate-800 font-bold rounded-lg text-[10px] flex items-center gap-1 cursor-pointer transition-colors"
+                        title="Re-fetch high-precision device GPS"
+                      >
+                        <RefreshCw className={`w-3 h-3 ${isRefreshingLocation ? 'animate-spin text-red-600' : ''}`} />
+                        <span>{isRefreshingLocation ? 'Locking...' : 'Refresh GPS'}</span>
+                      </button>
                     </div>
-                    <p className="font-mono text-slate-800 bg-white p-2 rounded-xl border border-slate-200 text-[11px]">
+                    <p className="font-mono text-slate-800 bg-white p-2.5 rounded-xl border border-slate-200 text-[11px] break-words">
                       {location.name}
                     </p>
                   </div>
