@@ -1,5 +1,6 @@
 import http from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
+import { Response } from 'express';
 import { db, DBIncident, DBSOS, DBNotification } from './db';
 
 export interface WSMessage {
@@ -20,7 +21,56 @@ export interface ConnectedClient {
 }
 
 const clients = new Map<string, ConnectedClient>();
+const sseClients = new Set<Response>();
 let wssInstance: WebSocketServer | null = null;
+
+/**
+ * Register an HTTP Server-Sent Events (SSE) subscriber
+ * Provides 100% cellular and proxy firewall pass-through without requiring WebSocket upgrades.
+ */
+export function registerSSEClient(res: Response) {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache, no-transform',
+    'Connection': 'keep-alive',
+    'Access-Control-Allow-Origin': '*',
+    'X-Accel-Buffering': 'no'
+  });
+
+  const clientId = `sse-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+  res.write(
+    `data: ${JSON.stringify({
+      type: 'init',
+      data: {
+        clientId,
+        onlineDevices: clients.size + sseClients.size + 1,
+        syncProtocol: 'Server-Sent Events (SSE)',
+        serverTime: new Date().toISOString()
+      }
+    })}\n\n`
+  );
+
+  sseClients.add(res);
+  console.log(`[SSE] Client connected. Total SSE clients: ${sseClients.size}`);
+  broadcastPresence();
+
+  // Send SSE keep-alive comment every 15s to keep mobile NAT route active
+  const keepAlive = setInterval(() => {
+    try {
+      res.write(`: keepalive ${Date.now()}\n\n`);
+    } catch {
+      clearInterval(keepAlive);
+      sseClients.delete(res);
+    }
+  }, 15000);
+
+  res.on('close', () => {
+    clearInterval(keepAlive);
+    sseClients.delete(res);
+    console.log(`[SSE] Client disconnected. Remaining SSE clients: ${sseClients.size}`);
+    broadcastPresence();
+  });
+}
 
 export function setupWebSocketServer(httpServer: http.Server): WebSocketServer {
   const wss = new WebSocketServer({ noServer: true });
@@ -126,7 +176,7 @@ function sendToSocket(ws: WebSocket, message: WSMessage) {
 
 function broadcastPresence() {
   broadcastWebSocketEvent('presence:update', {
-    onlineDevices: clients.size,
+    onlineDevices: clients.size + sseClients.size,
     timestamp: new Date().toISOString()
   });
 }
@@ -308,7 +358,7 @@ function handleClientMessage(client: ConnectedClient, msg: WSMessage) {
 }
 
 /**
- * Broadcast an event to all connected WebSocket clients across multiple devices.
+ * Broadcast an event to all connected WebSocket & SSE clients across multiple devices.
  */
 export function broadcastWebSocketEvent(type: string, data: any, filter?: (client: ConnectedClient) => boolean) {
   const payload: WSMessage = {
@@ -318,6 +368,7 @@ export function broadcastWebSocketEvent(type: string, data: any, filter?: (clien
   };
   const stringified = JSON.stringify(payload);
 
+  // 1. Broadcast to WebSocket clients
   for (const client of clients.values()) {
     if (filter && !filter(client)) {
       continue;
@@ -330,6 +381,16 @@ export function broadcastWebSocketEvent(type: string, data: any, filter?: (clien
       }
     }
   }
+
+  // 2. Broadcast to Server-Sent Events (SSE) clients (works through 100% of mobile firewalls/proxies)
+  const sseChunk = `data: ${stringified}\n\n`;
+  for (const sseRes of sseClients) {
+    try {
+      sseRes.write(sseChunk);
+    } catch {
+      sseClients.delete(sseRes);
+    }
+  }
 }
 
 /**
@@ -337,7 +398,9 @@ export function broadcastWebSocketEvent(type: string, data: any, filter?: (clien
  */
 export function getWebSocketStats() {
   return {
-    totalClients: clients.size,
+    totalClients: clients.size + sseClients.size,
+    wsClients: clients.size,
+    sseClients: sseClients.size,
     authenticatedUsers: Array.from(clients.values()).filter((c) => !!c.userId).length,
     roles: Array.from(clients.values()).map((c) => c.role || 'guest')
   };

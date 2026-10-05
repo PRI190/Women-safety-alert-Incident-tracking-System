@@ -6,23 +6,26 @@ import { broadcastWebSocketEvent } from '../websocket';
 const router = Router();
 
 // POST /api/sos
-router.post('/', authenticateToken, (req: AuthRequest, res: Response) => {
+router.post('/', optionalAuthenticateToken, (req: AuthRequest, res: Response) => {
   try {
-    const { latitude, longitude, locationName, emergencyType, audioTranscript } = req.body;
-    const user = db.get('users').find((u) => u.id === req.user?.id);
+    const { latitude, longitude, locationName, emergencyType, audioTranscript, user: bodyUser } = req.body;
+    const resolvedUserId = req.user?.id || bodyUser?.id || 'poiu';
+    const dbUser = db.get('users').find((u) => u.id === resolvedUserId);
+    const resolvedName = req.user?.name || bodyUser?.name || dbUser?.name || 'Priya Sharma';
+    const resolvedPhone = dbUser?.phone || bodyUser?.phone || '+1 (555) 839-2041';
 
     const typeLabel = emergencyType || 'General SOS';
     const locStr = locationName || 'Captured Geolocation Marker';
-    const defaultTranscript = `AUTOMATED EMERGENCY VOICE DISPATCH: Attention! Urgent distress signal received from ${user?.name || req.user?.name || 'Citizen'} (DOB: ${user?.dob || 'N/A'}, Phone: ${user?.phone || 'N/A'}, Address: ${user?.address || 'N/A'}). Emergency Service Requested: ${typeLabel}. Current Location: ${locStr} [Lat: ${Number(latitude || 28.6139).toFixed(4)}, Long: ${Number(longitude || 77.2090).toFixed(4)}]. Emergency contacts have been auto-notified via SMS and automated call broadcast. Please dispatch immediate responders.`;
+    const defaultTranscript = `AUTOMATED EMERGENCY VOICE DISPATCH: Attention! Urgent distress signal received from ${resolvedName} (DOB: ${dbUser?.dob || bodyUser?.dob || 'N/A'}, Phone: ${resolvedPhone}, Address: ${dbUser?.address || bodyUser?.address || 'N/A'}). Emergency Service Requested: ${typeLabel}. Current Location: ${locStr} [Lat: ${Number(latitude || 28.6139).toFixed(4)}, Long: ${Number(longitude || 77.2090).toFixed(4)}]. Emergency contacts have been auto-notified via SMS and automated call broadcast. Please dispatch immediate responders.`;
 
     const sosAlerts = db.get('sosAlerts');
     const newSOS: DBSOS = {
       id: `SOS-2026-${Math.floor(100 + Math.random() * 900)}`,
-      userId: req.user?.id || 'poiu',
-      userName: user?.name || req.user?.name || 'Priya Sharma',
-      userPhone: user?.phone || '+1 (555) 839-2041',
-      userDob: user?.dob,
-      userAddress: user?.address,
+      userId: resolvedUserId,
+      userName: resolvedName,
+      userPhone: resolvedPhone,
+      userDob: dbUser?.dob || bodyUser?.dob,
+      userAddress: dbUser?.address || bodyUser?.address,
       latitude: Number(latitude) || 28.6139,
       longitude: Number(longitude) || 77.2090,
       locationName: locStr,
@@ -64,7 +67,7 @@ router.post('/', authenticateToken, (req: AuthRequest, res: Response) => {
 
     db.set('notifications', notifications);
 
-    // Broadcast in real-time to all connected devices via WebSocket!
+    // Broadcast in real-time to all connected devices via WebSocket & SSE!
     broadcastWebSocketEvent('sos:created', newSOS);
     broadcastWebSocketEvent('notification:new', {
       title: `🚨 URGENT: ${typeLabel}`,
@@ -75,7 +78,7 @@ router.post('/', authenticateToken, (req: AuthRequest, res: Response) => {
     return res.status(201).json({
       message: `${typeLabel} alert triggered successfully! Emergency contacts & responders notified.`,
       sosAlert: newSOS,
-      emergencyContacts: user?.emergencyContacts || []
+      emergencyContacts: dbUser?.emergencyContacts || bodyUser?.emergencyContacts || []
     });
   } catch (err: any) {
     return res.status(500).json({ error: err.message || 'Failed to trigger SOS' });

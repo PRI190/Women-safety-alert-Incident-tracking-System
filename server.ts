@@ -10,7 +10,7 @@ import sosRoutes from './server/routes/sosRoutes';
 import hotspotRoutes from './server/routes/hotspotRoutes';
 import dashboardRoutes from './server/routes/dashboardRoutes';
 import notificationRoutes from './server/routes/notificationRoutes';
-import { setupWebSocketServer, getWebSocketStats } from './server/websocket';
+import { setupWebSocketServer, getWebSocketStats, registerSSEClient } from './server/websocket';
 import { db } from './server/db';
 
 export const app = express();
@@ -71,6 +71,11 @@ app.get('/health', (req, res) => {
     websockets: getWebSocketStats(),
     timestamp: new Date().toISOString()
   });
+});
+
+// Server-Sent Events (SSE) stream endpoint for cellular networks and proxies blocking WebSockets
+app.get(['/api/realtime/stream', '/realtime/stream', '/api/events'], (req, res) => {
+  registerSSEClient(res);
 });
 
 // Fallback real-time synchronization endpoint for mobile phones where WebSocket handshakes are blocked by cellular NAT

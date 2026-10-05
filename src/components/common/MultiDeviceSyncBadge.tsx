@@ -17,6 +17,7 @@ export const MultiDeviceSyncBadge: React.FC<{ compact?: boolean }> = ({ compact 
   };
 
   const isWs = syncMode === 'websocket';
+  const isSse = syncMode === 'sse';
   const isPolling = syncMode === 'polling';
 
   return (
@@ -25,7 +26,7 @@ export const MultiDeviceSyncBadge: React.FC<{ compact?: boolean }> = ({ compact 
         type="button"
         onClick={() => setShowDetails(!showDetails)}
         className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all cursor-pointer font-bold ${
-          isWs
+          isWs || isSse
             ? 'bg-emerald-500/10 text-emerald-800 border-emerald-500/30 hover:bg-emerald-500/20'
             : isPolling
             ? 'bg-blue-500/10 text-blue-800 border-blue-500/30 hover:bg-blue-500/20'
@@ -37,13 +38,13 @@ export const MultiDeviceSyncBadge: React.FC<{ compact?: boolean }> = ({ compact 
           {isConnected && (
             <span
               className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
-                isWs ? 'bg-emerald-400' : 'bg-blue-400'
+                isWs || isSse ? 'bg-emerald-400' : 'bg-blue-400'
               }`}
             />
           )}
           <span
             className={`relative inline-flex rounded-full h-2 w-2 ${
-              isWs ? 'bg-emerald-500' : isPolling ? 'bg-blue-500' : 'bg-amber-500'
+              isWs || isSse ? 'bg-emerald-500' : isPolling ? 'bg-blue-500' : 'bg-amber-500'
             }`}
           />
         </span>
@@ -52,6 +53,8 @@ export const MultiDeviceSyncBadge: React.FC<{ compact?: boolean }> = ({ compact 
           <span className="text-[11px] font-mono font-bold">
             {isWs
               ? `${onlineDevices} Dev (WS)`
+              : isSse
+              ? `${onlineDevices} Dev (SSE)`
               : isPolling
               ? `${onlineDevices} Dev (Sync)`
               : 'Reconnecting'}
@@ -62,6 +65,11 @@ export const MultiDeviceSyncBadge: React.FC<{ compact?: boolean }> = ({ compact 
               <>
                 <Wifi className="w-3.5 h-3.5 text-emerald-600" />
                 <span>Multi-Device Sync ({onlineDevices} Online)</span>
+              </>
+            ) : isSse ? (
+              <>
+                <Radio className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
+                <span>Live Stream Sync ({onlineDevices} Online)</span>
               </>
             ) : isPolling ? (
               <>
@@ -96,12 +104,14 @@ export const MultiDeviceSyncBadge: React.FC<{ compact?: boolean }> = ({ compact 
                 className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                   isWs
                     ? 'bg-emerald-100 text-emerald-800'
+                    : isSse
+                    ? 'bg-teal-100 text-teal-800'
                     : isPolling
                     ? 'bg-blue-100 text-blue-800'
                     : 'bg-amber-100 text-amber-800'
                 }`}
               >
-                {isWs ? 'WEBSOCKET' : isPolling ? 'CELLULAR POLLING' : 'RECONNECTING'}
+                {isWs ? 'WEBSOCKET' : isSse ? 'SERVER-SENT EVENTS' : isPolling ? 'CELLULAR POLLING' : 'RECONNECTING'}
               </span>
             </div>
 
@@ -114,7 +124,11 @@ export const MultiDeviceSyncBadge: React.FC<{ compact?: boolean }> = ({ compact 
                 <div className="flex items-center justify-between text-slate-500 text-[11px]">
                   <span>Active Channel:</span>
                   <span className="font-bold text-slate-900 font-mono text-[10px]">
-                    {isWs ? 'WebSocket (wss://)' : 'HTTP Real-Time Polling (/api/realtime/sync)'}
+                    {isWs
+                      ? 'WebSocket (wss://)'
+                      : isSse
+                      ? 'Server-Sent Events (/api/realtime/stream)'
+                      : 'HTTP Real-Time Polling (/api/realtime/sync)'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-slate-500 text-[11px]">

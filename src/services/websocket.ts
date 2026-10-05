@@ -8,10 +8,11 @@
  */
 
 export type WSEventCallback = (data: any) => void;
-export type SyncMode = 'websocket' | 'polling' | 'connecting';
+export type SyncMode = 'websocket' | 'sse' | 'polling' | 'connecting';
 
 class WebSocketClient {
   private ws: WebSocket | null = null;
+  private eventSource: EventSource | null = null;
   private url: string = '';
   private reconnectAttempts = 0;
   private reconnectTimeout: any = null;
@@ -78,8 +79,9 @@ class WebSocketClient {
     this.syncMode = 'connecting';
     this.emitLocal('connection:change', { connected: false, syncMode: 'connecting' });
 
-    // Start fallback HTTP polling in case mobile network drops WebSocket upgrades
+    // Start fallback HTTP polling and native SSE in case mobile network drops WebSocket upgrades
     this.ensurePollingFallback();
+    this.setupEventSource();
 
     try {
       this.ws = new WebSocket(this.url);
@@ -170,6 +172,7 @@ class WebSocketClient {
     this.isExplicitlyClosed = true;
     this.stopPing();
     this.stopPollingFallback();
+    this.stopEventSource();
     if (this.reconnectTimeout) {
       clearTimeout(this.reconnectTimeout);
       this.reconnectTimeout = null;
@@ -182,6 +185,60 @@ class WebSocketClient {
     }
     this.isConnected = false;
     this.syncMode = 'connecting';
+  }
+
+  private setupEventSource() {
+    if (typeof window === 'undefined' || typeof EventSource === 'undefined') return;
+    if (this.eventSource) return;
+
+    try {
+      this.eventSource = new EventSource('/api/realtime/stream');
+
+      this.eventSource.onopen = () => {
+        console.log('[RealTime Sync] Server-Sent Events (SSE) stream open');
+        if (!this.isConnected || this.syncMode !== 'websocket') {
+          this.isConnected = true;
+          this.syncMode = 'sse';
+          this.stopPollingFallback();
+          this.emitLocal('connection:change', { connected: true, syncMode: 'sse' });
+        }
+      };
+
+      this.eventSource.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          const { type, data } = payload;
+          if (type === 'init') {
+            if (data?.onlineDevices) {
+              this.onlineDevices = data.onlineDevices;
+              this.emitLocal('presence:update', { onlineDevices: this.onlineDevices });
+            }
+          } else if (type === 'presence:update') {
+            if (data?.onlineDevices) {
+              this.onlineDevices = data.onlineDevices;
+              this.emitLocal('presence:update', { onlineDevices: this.onlineDevices });
+            }
+          }
+          this.emitLocal(type, data);
+          this.emitLocal('*', { type, data });
+        } catch (err) {}
+      };
+
+      this.eventSource.onerror = () => {
+        // Native EventSource automatically handles reconnection
+      };
+    } catch (err) {
+      console.warn('[RealTime Sync] SSE setup exception:', err);
+    }
+  }
+
+  private stopEventSource() {
+    if (this.eventSource) {
+      try {
+        this.eventSource.close();
+      } catch {}
+      this.eventSource = null;
+    }
   }
 
   private scheduleReconnect() {
