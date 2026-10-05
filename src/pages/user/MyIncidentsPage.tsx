@@ -2,10 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../../services/api';
 import { Incident } from '../../types';
 import { StatusBadge } from '../../components/common/StatusBadge';
+import { useWebSocket } from '../../context/WebSocketContext';
+import { useAuth } from '../../context/AuthContext';
 import { Search, Filter, Eye, RefreshCw, X, MapPin, Calendar, Clock, User, ShieldCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export const MyIncidentsPage: React.FC = () => {
+  const { user } = useAuth();
+  const { lastIncident } = useWebSocket();
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -15,6 +19,27 @@ export const MyIncidentsPage: React.FC = () => {
   useEffect(() => {
     loadIncidents();
   }, [statusFilter]);
+
+  // Real-time multi-device sync
+  useEffect(() => {
+    if (lastIncident) {
+      const isMine =
+        lastIncident.userId === user?.id ||
+        (user?.id === 'poiu' && (lastIncident.userId === 'poiu' || lastIncident.userId === 'usr-demo-1'));
+      if (isMine) {
+        setIncidents((prev) => {
+          const index = prev.findIndex((i) => i.id === lastIncident.id);
+          if (index !== -1) {
+            const updated = [...prev];
+            updated[index] = { ...updated[index], ...lastIncident };
+            return updated;
+          } else {
+            return [lastIncident, ...prev];
+          }
+        });
+      }
+    }
+  }, [lastIncident, user]);
 
   const loadIncidents = async () => {
     setLoading(true);

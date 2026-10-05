@@ -2,18 +2,55 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../../services/api';
 import { SOSAlert } from '../../types';
 import { useAuth } from '../../context/AuthContext';
+import { useWebSocket } from '../../context/WebSocketContext';
 import { ShieldAlert, MapPin, PhoneCall, CheckCircle2, Clock, Volume2, RefreshCw } from 'lucide-react';
 import { AudioVoicePlayer } from '../../components/common/AudioVoicePlayer';
 import { InteractiveEmergencyMap } from '../../components/common/InteractiveEmergencyMap';
 
 export const AdminSOSPage: React.FC = () => {
   const { showToast } = useAuth();
+  const { lastSOSAlert, liveTrackingMap } = useWebSocket();
   const [sosList, setSosList] = useState<SOSAlert[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadSOS();
   }, []);
+
+  // Real-time Multi-Device SOS Sync
+  useEffect(() => {
+    if (lastSOSAlert) {
+      setSosList((prev) => {
+        const index = prev.findIndex((s) => s.id === lastSOSAlert.id);
+        if (index !== -1) {
+          const updated = [...prev];
+          updated[index] = { ...updated[index], ...lastSOSAlert };
+          return updated;
+        } else {
+          return [lastSOSAlert, ...prev];
+        }
+      });
+    }
+  }, [lastSOSAlert]);
+
+  // Real-time live coordinates sync
+  useEffect(() => {
+    if (Object.keys(liveTrackingMap).length > 0) {
+      setSosList((prev) =>
+        prev.map((s) => {
+          if (liveTrackingMap[s.id]) {
+            return {
+              ...s,
+              latitude: liveTrackingMap[s.id].latitude,
+              longitude: liveTrackingMap[s.id].longitude,
+              locationName: liveTrackingMap[s.id].locationName || s.locationName
+            };
+          }
+          return s;
+        })
+      );
+    }
+  }, [liveTrackingMap]);
 
   const loadSOS = async () => {
     setLoading(true);

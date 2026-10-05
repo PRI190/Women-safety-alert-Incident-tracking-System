@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { SOSFloatingButton, triggerSOSModal } from '../../components/common/SOSFloatingButton';
+import { MultiDeviceSyncBadge } from '../../components/common/MultiDeviceSyncBadge';
 import {
   ShieldAlert,
   LayoutDashboard,
@@ -52,6 +53,7 @@ export const UserDashboardLayout: React.FC = () => {
         </Link>
 
         <div className="flex items-center gap-2">
+          <MultiDeviceSyncBadge compact />
           <button
             onClick={() => triggerSOSModal()}
             className="px-3 py-1.5 bg-gradient-to-r from-red-600 to-rose-600 text-white rounded-xl text-xs font-black shadow-md flex items-center gap-1 cursor-pointer animate-pulse"
@@ -77,19 +79,24 @@ export const UserDashboardLayout: React.FC = () => {
       >
         <div className="space-y-5">
           {/* Logo */}
-          <Link to="/landing" className="flex items-center gap-2.5 px-2">
-            <div className="w-10 h-10 rounded-2xl bg-[#B91C1C] flex items-center justify-center text-white shadow-md">
-              <ShieldAlert className="w-6 h-6" />
+          <div className="flex flex-col gap-2">
+            <Link to="/landing" className="flex items-center gap-2.5 px-2">
+              <div className="w-10 h-10 rounded-2xl bg-[#B91C1C] flex items-center justify-center text-white shadow-md">
+                <ShieldAlert className="w-6 h-6" />
+              </div>
+              <div>
+                <span className="font-extrabold text-base text-slate-900 tracking-tight block">
+                  SafeGuard<span className="text-[#B91C1C]">112</span>
+                </span>
+                <span className="text-[10px] text-[#B91C1C] font-bold block uppercase tracking-wider">
+                  User Portal
+                </span>
+              </div>
+            </Link>
+            <div className="px-2">
+              <MultiDeviceSyncBadge />
             </div>
-            <div>
-              <span className="font-extrabold text-base text-slate-900 tracking-tight block">
-                SafeGuard<span className="text-[#B91C1C]">112</span>
-              </span>
-              <span className="text-[10px] text-[#B91C1C] font-bold block uppercase tracking-wider">
-                User Portal
-              </span>
-            </div>
-          </Link>
+          </div>
 
           {/* Dedicated SOS Direct Action Box in Sidebar */}
           <div className="p-3.5 rounded-2xl bg-gradient-to-br from-red-600 to-rose-700 text-white shadow-lg space-y-2">

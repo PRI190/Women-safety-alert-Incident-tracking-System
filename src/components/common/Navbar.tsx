@@ -16,6 +16,7 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { MultiDeviceSyncBadge } from './MultiDeviceSyncBadge';
 
 export const Navbar: React.FC = () => {
   const { user, logout, demoLoginAdmin, demoLoginUser, unreadCount, notifications, fetchNotifications } = useAuth();
@@ -85,6 +86,7 @@ export const Navbar: React.FC = () => {
 
           {/* Actions & Role Controls */}
           <div className="hidden md:flex items-center gap-3">
+            <MultiDeviceSyncBadge />
             {/* Quick Demo Switcher */}
             <div className="relative">
               <button

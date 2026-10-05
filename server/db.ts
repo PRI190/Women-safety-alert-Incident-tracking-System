@@ -150,15 +150,15 @@ function initializeSeedData(): DBData {
   const incidents: DBIncident[] = [
     {
       id: 'INC-2026-001',
-      userId: 'usr-demo-1',
+      userId: 'poiu',
       userName: 'Priya Sharma',
       userPhone: '+1 (555) 839-2041',
       title: 'Verbal Harassment near Metro North Exit',
       category: 'Harassment',
       description: 'Group of men loitering near stairs calling out disrespectful remarks at 9:30 PM.',
       location: 'Metro Station North Gate, 5th Avenue',
-      latitude: 40.7128,
-      longitude: -74.006,
+      latitude: 28.6139,
+      longitude: 77.2090,
       date: '2026-08-05',
       time: '21:30',
       status: 'Under Review',
@@ -176,8 +176,8 @@ function initializeSeedData(): DBData {
       category: 'Stalking',
       description: 'An unbadged black sedan followed slowly behind for 4 blocks along Park Street.',
       location: 'Park Street & 12th Avenue',
-      latitude: 40.7282,
-      longitude: -73.9942,
+      latitude: 28.6250,
+      longitude: 77.2150,
       date: '2026-08-04',
       time: '22:15',
       status: 'Resolved',
@@ -188,14 +188,14 @@ function initializeSeedData(): DBData {
     },
     {
       id: 'INC-2026-003',
-      userId: 'usr-demo-1',
+      userId: 'poiu',
       userName: 'Anonymous User',
       title: 'Unlit Alleyway and Unauthorized Gathering',
       category: 'Suspicious Activity',
       description: 'Streetlights broken for 3 weeks; groups blocking walkway after midnight.',
       location: 'Oakridge Suburb Alleyway 4',
-      latitude: 40.7589,
-      longitude: -73.9851,
+      latitude: 28.6320,
+      longitude: 77.1980,
       date: '2026-08-06',
       time: '00:10',
       status: 'Pending',
@@ -210,8 +210,8 @@ function initializeSeedData(): DBData {
       category: 'Cyber Crime',
       description: 'Received repeated non-consensual threat messages via unverified social accounts.',
       location: 'Online Platform / University Portal',
-      latitude: 40.7306,
-      longitude: -73.9352,
+      latitude: 28.6080,
+      longitude: 77.2250,
       date: '2026-08-03',
       time: '18:45',
       status: 'Resolved',
@@ -225,14 +225,16 @@ function initializeSeedData(): DBData {
   const sosAlerts: DBSOS[] = [
     {
       id: 'SOS-2026-881',
-      userId: 'usr-demo-1',
+      userId: 'poiu',
       userName: 'Priya Sharma',
       userPhone: '+1 (555) 839-2041',
-      latitude: 40.7128,
-      longitude: -74.006,
+      latitude: 28.6139,
+      longitude: 77.2090,
       locationName: 'Near Metro Station North Gate',
       time: new Date(Date.now() - 1800000).toISOString(),
       status: 'DISPATCHED',
+      emergencyType: 'General SOS',
+      audioTranscript: 'AUTOMATED EMERGENCY VOICE DISPATCH: Attention! Urgent distress signal received from Priya Sharma. Location: Near Metro Station North Gate. Please dispatch immediate responders.',
       notes: 'Emergency unit 04 dispatched. Emergency contacts alerted via automated SMS.'
     },
     {
@@ -240,11 +242,12 @@ function initializeSeedData(): DBData {
       userId: 'usr-demo-2',
       userName: 'Ananya Roy',
       userPhone: '+1 (555) 441-9201',
-      latitude: 40.7589,
-      longitude: -73.9851,
-      locationName: 'Times Square Central Plaza',
+      latitude: 28.6280,
+      longitude: 77.2180,
+      locationName: 'Central Commercial Plaza',
       time: new Date(Date.now() - 86400000).toISOString(),
       status: 'RESOLVED',
+      emergencyType: 'Police (112)',
       resolvedAt: new Date(Date.now() - 82000000).toISOString(),
       notes: 'User safely escorted to cab by nearby police patrol officer.'
     }
@@ -253,7 +256,7 @@ function initializeSeedData(): DBData {
   const notifications: DBNotification[] = [
     {
       id: 'notif-1',
-      userId: 'usr-demo-1',
+      userId: 'poiu',
       title: 'Incident Status Updated',
       message: 'Your report INC-2026-001 status changed to "Under Review". Officer Sarah assigned.',
       type: 'incident',
@@ -262,7 +265,7 @@ function initializeSeedData(): DBData {
     },
     {
       id: 'notif-2',
-      userId: 'usr-demo-1',
+      userId: 'poiu',
       title: 'SOS Emergency Response Sent',
       message: 'Police emergency response dispatch confirmed for your SOS alert #SOS-2026-881.',
       type: 'sos',
@@ -271,7 +274,7 @@ function initializeSeedData(): DBData {
     },
     {
       id: 'notif-admin',
-      userId: 'usr-admin-1',
+      userId: 'qwer',
       title: 'URGENT: New SOS Alert Triggered',
       message: 'SOS Alert #SOS-2026-881 triggered by Priya Sharma at Metro Station North Gate.',
       type: 'sos',
@@ -352,7 +355,27 @@ class StoreManager {
     try {
       if (fs.existsSync(DATA_FILE)) {
         const raw = fs.readFileSync(DATA_FILE, 'utf-8');
-        return JSON.parse(raw);
+        const parsed = JSON.parse(raw);
+        if (parsed && Array.isArray(parsed.users) && parsed.users.length > 0) {
+          // Normalize legacy demo-1 references if present
+          if (Array.isArray(parsed.incidents)) {
+            parsed.incidents.forEach((i: any) => {
+              if (i.userId === 'usr-demo-1') i.userId = 'poiu';
+            });
+          }
+          if (Array.isArray(parsed.sosAlerts)) {
+            parsed.sosAlerts.forEach((s: any) => {
+              if (s.userId === 'usr-demo-1') s.userId = 'poiu';
+            });
+          }
+          if (Array.isArray(parsed.notifications)) {
+            parsed.notifications.forEach((n: any) => {
+              if (n.userId === 'usr-demo-1') n.userId = 'poiu';
+              if (n.userId === 'usr-admin-1') n.userId = 'qwer';
+            });
+          }
+          return parsed;
+        }
       }
     } catch (e) {
       console.warn('Could not read existing data file, initializing seed data:', e);

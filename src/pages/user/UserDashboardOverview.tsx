@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useWebSocket } from '../../context/WebSocketContext';
 import { api } from '../../services/api';
 import { DashboardMetrics, Incident, SafetyHotspot, SOSAlert } from '../../types';
 import { StatusBadge } from '../../components/common/StatusBadge';
@@ -22,6 +23,7 @@ import {
 
 export const UserDashboardOverview: React.FC = () => {
   const { user } = useAuth();
+  const { lastIncident, lastSOSAlert } = useWebSocket();
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [recentIncidents, setRecentIncidents] = useState<Incident[]>([]);
   const [hotspots, setHotspots] = useState<SafetyHotspot[]>([]);
@@ -31,6 +33,41 @@ export const UserDashboardOverview: React.FC = () => {
   useEffect(() => {
     loadDashboard();
   }, []);
+
+  // Real-time incident sync
+  useEffect(() => {
+    if (lastIncident) {
+      setRecentIncidents((prev) => {
+        const index = prev.findIndex((i) => i.id === lastIncident.id);
+        if (index !== -1) {
+          const updated = [...prev];
+          updated[index] = { ...updated[index], ...lastIncident };
+          return updated;
+        } else {
+          return [lastIncident, ...prev].slice(0, 5);
+        }
+      });
+      // Refresh metrics silently
+      api.getDashboardMetrics().then(setMetrics).catch(() => {});
+    }
+  }, [lastIncident]);
+
+  // Real-time SOS sync
+  useEffect(() => {
+    if (lastSOSAlert) {
+      setSosAlerts((prev) => {
+        const index = prev.findIndex((s) => s.id === lastSOSAlert.id);
+        if (index !== -1) {
+          const updated = [...prev];
+          updated[index] = { ...updated[index], ...lastSOSAlert };
+          return updated;
+        } else {
+          return [lastSOSAlert, ...prev];
+        }
+      });
+      api.getDashboardMetrics().then(setMetrics).catch(() => {});
+    }
+  }, [lastSOSAlert]);
 
   const loadDashboard = async () => {
     setLoading(true);

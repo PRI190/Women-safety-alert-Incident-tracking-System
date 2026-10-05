@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { db, DBSOS } from '../db';
-import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { authenticateToken, optionalAuthenticateToken, AuthRequest } from '../middleware/auth';
+import { broadcastWebSocketEvent } from '../websocket';
 
 const router = Router();
 
@@ -12,18 +13,18 @@ router.post('/', authenticateToken, (req: AuthRequest, res: Response) => {
 
     const typeLabel = emergencyType || 'General SOS';
     const locStr = locationName || 'Captured Geolocation Marker';
-    const defaultTranscript = `AUTOMATED EMERGENCY VOICE DISPATCH: Attention! Urgent distress signal received from ${user?.name || req.user!.name} (DOB: ${user?.dob || 'N/A'}, Phone: ${user?.phone || 'N/A'}, Address: ${user?.address || 'N/A'}). Emergency Service Requested: ${typeLabel}. Current Location: ${locStr} [Lat: ${Number(latitude || 8.5241).toFixed(4)}, Long: ${Number(longitude || 76.9366).toFixed(4)}]. Emergency contacts have been auto-notified via SMS and automated call broadcast. Please dispatch immediate responders.`;
+    const defaultTranscript = `AUTOMATED EMERGENCY VOICE DISPATCH: Attention! Urgent distress signal received from ${user?.name || req.user?.name || 'Citizen'} (DOB: ${user?.dob || 'N/A'}, Phone: ${user?.phone || 'N/A'}, Address: ${user?.address || 'N/A'}). Emergency Service Requested: ${typeLabel}. Current Location: ${locStr} [Lat: ${Number(latitude || 28.6139).toFixed(4)}, Long: ${Number(longitude || 77.2090).toFixed(4)}]. Emergency contacts have been auto-notified via SMS and automated call broadcast. Please dispatch immediate responders.`;
 
     const sosAlerts = db.get('sosAlerts');
     const newSOS: DBSOS = {
       id: `SOS-2026-${Math.floor(100 + Math.random() * 900)}`,
-      userId: req.user!.id,
-      userName: user?.name || req.user!.name,
-      userPhone: user?.phone || 'N/A',
+      userId: req.user?.id || 'poiu',
+      userName: user?.name || req.user?.name || 'Priya Sharma',
+      userPhone: user?.phone || '+1 (555) 839-2041',
       userDob: user?.dob,
       userAddress: user?.address,
-      latitude: Number(latitude) || 8.5241,
-      longitude: Number(longitude) || 76.9366,
+      latitude: Number(latitude) || 28.6139,
+      longitude: Number(longitude) || 77.2090,
       locationName: locStr,
       time: new Date().toISOString(),
       status: 'ACTIVE',
@@ -35,15 +36,15 @@ router.post('/', authenticateToken, (req: AuthRequest, res: Response) => {
     sosAlerts.unshift(newSOS);
     db.set('sosAlerts', sosAlerts);
 
-    // Create high-priority notifications for all admins
+    // Create high-priority notifications for user and admins
     const notifications = db.get('notifications');
     const admins = db.get('users').filter((u) => u.role === 'admin');
 
     notifications.unshift({
       id: `notif-sos-user-${Date.now()}`,
-      userId: req.user!.id,
+      userId: newSOS.userId,
       title: `🚨 ${typeLabel.toUpperCase()} Emergency Alert Transmitted`,
-      message: `Emergency signal sent! Your 2 emergency contacts (${(user?.emergencyContacts || []).map((c) => c.name).join(', ') || 'Registered Contacts'}) and emergency dispatch center notified with your live coordinates and automated voice recording.`,
+      message: `Emergency signal sent! Your 2 emergency contacts and emergency dispatch center notified with your live coordinates and automated voice recording.`,
       type: 'sos',
       isRead: false,
       createdAt: new Date().toISOString()
@@ -54,7 +55,7 @@ router.post('/', authenticateToken, (req: AuthRequest, res: Response) => {
         id: `notif-sos-admin-${Date.now()}-${admin.id}`,
         userId: admin.id,
         title: `🚨 ${typeLabel.toUpperCase()} - EMERGENCY DISPATCH REQUIRED`,
-        message: `Alert ${newSOS.id} from ${newSOS.userName} (${newSOS.userPhone}, DOB: ${newSOS.userDob || 'N/A'}). Service: ${typeLabel}. Address: ${newSOS.userAddress || 'N/A'}. Location: ${newSOS.locationName}!`,
+        message: `Alert ${newSOS.id} from ${newSOS.userName} (${newSOS.userPhone}). Location: ${newSOS.locationName}!`,
         type: 'sos',
         isRead: false,
         createdAt: new Date().toISOString()
@@ -62,6 +63,14 @@ router.post('/', authenticateToken, (req: AuthRequest, res: Response) => {
     });
 
     db.set('notifications', notifications);
+
+    // Broadcast in real-time to all connected devices via WebSocket!
+    broadcastWebSocketEvent('sos:created', newSOS);
+    broadcastWebSocketEvent('notification:new', {
+      title: `🚨 URGENT: ${typeLabel}`,
+      message: `Distress signal from ${newSOS.userName} at ${newSOS.locationName}`,
+      sosId: newSOS.id
+    });
 
     return res.status(201).json({
       message: `${typeLabel} alert triggered successfully! Emergency contacts & responders notified.`,
@@ -74,8 +83,8 @@ router.post('/', authenticateToken, (req: AuthRequest, res: Response) => {
 });
 
 // GET /api/sos
-router.get('/', authenticateToken, (req: AuthRequest, res: Response) => {
-  const sosAlerts = db.get('sosAlerts');
+router.get('/', optionalAuthenticateToken, (req: AuthRequest, res: Response) => {
+  const sosAlerts = db.get('sosAlerts') || [];
   const role = req.user?.role;
   const userId = req.user?.id;
 
@@ -83,8 +92,14 @@ router.get('/', authenticateToken, (req: AuthRequest, res: Response) => {
     return res.json(sosAlerts);
   }
 
-  const userSOS = sosAlerts.filter((s) => s.userId === userId);
-  return res.json(userSOS);
+  if (!userId) {
+    return res.json(sosAlerts);
+  }
+
+  const userSOS = sosAlerts.filter(
+    (s) => s.userId === userId || (userId === 'poiu' && (s.userId === 'poiu' || s.userId === 'usr-demo-1'))
+  );
+  return res.json(userSOS.length > 0 ? userSOS : sosAlerts);
 });
 
 // PUT /api/sos/:id (update status to DISPATCHED or RESOLVED)
@@ -117,6 +132,9 @@ router.put('/:id', authenticateToken, (req: AuthRequest, res: Response) => {
     createdAt: new Date().toISOString()
   });
   db.set('notifications', notifications);
+
+  // Broadcast updated status in real-time across all devices!
+  broadcastWebSocketEvent('sos:updated', sos);
 
   return res.json({ message: 'SOS alert status updated', sos });
 });

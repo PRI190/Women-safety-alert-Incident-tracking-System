@@ -2,10 +2,12 @@ import React, { useEffect, useState, useRef } from 'react';
 import { ShieldAlert, Volume2, VolumeX, CheckCircle, Radio, MapPin, Phone, User, Clock, AlertTriangle } from 'lucide-react';
 import { api } from '../../services/api';
 import { SOSAlert } from '../../types';
+import { useWebSocket } from '../../context/WebSocketContext';
 import { startEmergencySiren, stopEmergencySiren, isSirenPlaying, playTestBeep } from '../../utils/sirenAudio';
 import { motion, AnimatePresence } from 'motion/react';
 
 export const AdminSOSAlarmBanner: React.FC = () => {
+  const { lastSOSAlert } = useWebSocket();
   const [activeAlerts, setActiveAlerts] = useState<SOSAlert[]>([]);
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   const [isAudioAllowed, setIsAudioAllowed] = useState(true);
@@ -62,7 +64,7 @@ export const AdminSOSAlarmBanner: React.FC = () => {
       clearInterval(interval);
       stopEmergencySiren();
     };
-  }, [isAudioMuted]);
+  }, [isAudioMuted, lastSOSAlert]);
 
   const handleToggleMute = () => {
     if (isAudioMuted) {

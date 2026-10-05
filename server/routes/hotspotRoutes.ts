@@ -1,13 +1,14 @@
 import { Router, Response } from 'express';
 import { db, DBHotspot } from '../db';
-import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { authenticateToken, optionalAuthenticateToken, AuthRequest } from '../middleware/auth';
+import { broadcastWebSocketEvent } from '../websocket';
 
 const router = Router();
 
-// GET /api/hotspots
-router.get('/', authenticateToken, (req: AuthRequest, res: Response) => {
+// GET /api/hotspots (Public safety map access)
+router.get('/', optionalAuthenticateToken, (req: AuthRequest, res: Response) => {
   const hotspots = db.get('hotspots');
-  return res.json(hotspots);
+  return res.json(hotspots || []);
 });
 
 // POST /api/hotspots (Admin add or refresh area)
@@ -37,6 +38,9 @@ router.post('/', authenticateToken, (req: AuthRequest, res: Response) => {
 
   hotspots.push(newHotspot);
   db.set('hotspots', hotspots);
+
+  // Broadcast hotspot update to all connected maps
+  broadcastWebSocketEvent('hotspot:created', newHotspot);
 
   return res.status(201).json({ message: 'Hotspot location added', hotspot: newHotspot });
 });

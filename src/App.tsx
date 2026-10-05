@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { WebSocketProvider } from './context/WebSocketContext';
 import { ToastContainer } from './components/common/ToastContainer';
 
 // Landing & Auth
@@ -58,53 +59,55 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; requireAdmin?: boole
 export function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <ToastContainer />
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/" element={<LoginPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/landing" element={<LandingPage />} />
-          <Route path="/register" element={<RegisterPage />} />
+      <WebSocketProvider>
+        <BrowserRouter>
+          <ToastContainer />
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/" element={<LoginPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/landing" element={<LandingPage />} />
+            <Route path="/register" element={<RegisterPage />} />
 
-          {/* User Portal Routes */}
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <UserDashboardLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<UserDashboardOverview />} />
-            <Route path="report" element={<ReportIncidentPage />} />
-            <Route path="incidents" element={<MyIncidentsPage />} />
-            <Route path="hotspots" element={<HotspotMapPage />} />
-            <Route path="notifications" element={<NotificationsPage />} />
-            <Route path="profile" element={<ProfilePage />} />
-          </Route>
+            {/* User Portal Routes */}
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <UserDashboardLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<UserDashboardOverview />} />
+              <Route path="report" element={<ReportIncidentPage />} />
+              <Route path="incidents" element={<MyIncidentsPage />} />
+              <Route path="hotspots" element={<HotspotMapPage />} />
+              <Route path="notifications" element={<NotificationsPage />} />
+              <Route path="profile" element={<ProfilePage />} />
+            </Route>
 
-          {/* Admin Command Portal Routes */}
-          <Route
-            path="/admin"
-            element={
-              <ProtectedRoute requireAdmin={true}>
-                <AdminDashboardLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<AdminDashboardOverview />} />
-            <Route path="incidents" element={<AdminIncidentsPage />} />
-            <Route path="sos" element={<AdminSOSPage />} />
-            <Route path="users" element={<AdminUsersPage />} />
-            <Route path="analytics" element={<AdminAnalyticsPage />} />
-            <Route path="settings" element={<AdminSettingsPage />} />
-          </Route>
+            {/* Admin Command Portal Routes */}
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute requireAdmin={true}>
+                  <AdminDashboardLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<AdminDashboardOverview />} />
+              <Route path="incidents" element={<AdminIncidentsPage />} />
+              <Route path="sos" element={<AdminSOSPage />} />
+              <Route path="users" element={<AdminUsersPage />} />
+              <Route path="analytics" element={<AdminAnalyticsPage />} />
+              <Route path="settings" element={<AdminSettingsPage />} />
+            </Route>
 
-          {/* Catch-all Redirect */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
+            {/* Catch-all Redirect */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </WebSocketProvider>
     </AuthProvider>
   );
 }

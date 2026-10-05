@@ -41,6 +41,7 @@ import {
   allocateMapLocation,
   CountryData
 } from '../../services/countriesService';
+import { useWebSocket } from '../../context/WebSocketContext';
 
 interface InteractiveEmergencyMapProps {
   incidents?: Incident[];
@@ -92,6 +93,38 @@ export const InteractiveEmergencyMap: React.FC<InteractiveEmergencyMapProps> = (
 
   // Retrieve cached location or userLocation prop
   const initialLoc = getCachedLocation();
+
+  const { lastSOSAlert, lastIncident, liveTrackingMap } = useWebSocket();
+  const [liveSOSList, setLiveSOSList] = useState<SOSAlert[]>([]);
+  const [liveIncidentList, setLiveIncidentList] = useState<Incident[]>([]);
+
+  useEffect(() => {
+    if (lastSOSAlert) {
+      setLiveSOSList((prev) => {
+        const idx = prev.findIndex((s) => s.id === lastSOSAlert.id);
+        if (idx !== -1) {
+          const updated = [...prev];
+          updated[idx] = { ...updated[idx], ...lastSOSAlert };
+          return updated;
+        }
+        return [lastSOSAlert, ...prev];
+      });
+    }
+  }, [lastSOSAlert]);
+
+  useEffect(() => {
+    if (lastIncident) {
+      setLiveIncidentList((prev) => {
+        const idx = prev.findIndex((i) => i.id === lastIncident.id);
+        if (idx !== -1) {
+          const updated = [...prev];
+          updated[idx] = { ...updated[idx], ...lastIncident };
+          return updated;
+        }
+        return [lastIncident, ...prev];
+      });
+    }
+  }, [lastIncident]);
 
   const [liveLocation, setLiveLocation] = useState<DeviceLocation | null>(initialLoc);
   const [mapLayer, setMapLayer] = useState<MapLayerType>('streets');
@@ -709,9 +742,31 @@ export const InteractiveEmergencyMap: React.FC<InteractiveEmergencyMapProps> = (
       });
     }
 
+    // Combine props with real-time WebSocket alerts & moving coordinates
+    const combinedSOSMap = new Map<string, SOSAlert>();
+    sosAlerts.forEach((s) => combinedSOSMap.set(s.id, s));
+    liveSOSList.forEach((s) => combinedSOSMap.set(s.id, s));
+    Object.keys(liveTrackingMap).forEach((id) => {
+      if (combinedSOSMap.has(id)) {
+        const item = combinedSOSMap.get(id)!;
+        combinedSOSMap.set(id, {
+          ...item,
+          latitude: liveTrackingMap[id].latitude,
+          longitude: liveTrackingMap[id].longitude,
+          locationName: liveTrackingMap[id].locationName || item.locationName
+        });
+      }
+    });
+    const effectiveSOSAlerts = Array.from(combinedSOSMap.values());
+
+    const combinedIncMap = new Map<string, Incident>();
+    incidents.forEach((i) => combinedIncMap.set(i.id, i));
+    liveIncidentList.forEach((i) => combinedIncMap.set(i.id, i));
+    const effectiveIncidents = Array.from(combinedIncMap.values());
+
     // 2. Render SOS Alerts (Life-or-Death Emergency Distress Calls - High-Priority Visuals)
     if (placeFilter === 'all' || placeFilter === 'sos') {
-      sosAlerts.forEach((sos) => {
+      effectiveSOSAlerts.forEach((sos) => {
         if (!sos.latitude || !sos.longitude) return;
         const isUnresolved = sos.status === 'ACTIVE' || sos.status === 'DISPATCHED' || sos.status === 'Active';
 
@@ -764,7 +819,7 @@ export const InteractiveEmergencyMap: React.FC<InteractiveEmergencyMapProps> = (
 
     // 3. Render Incident Pins
     if (placeFilter === 'all') {
-      incidents.forEach((inc) => {
+      effectiveIncidents.forEach((inc) => {
         if (!inc.latitude || !inc.longitude) return;
         const isHigh = inc.severity === 'HIGH' || inc.severity === 'High';
         const isMed = inc.severity === 'MEDIUM' || inc.severity === 'Medium';
@@ -874,7 +929,18 @@ export const InteractiveEmergencyMap: React.FC<InteractiveEmergencyMapProps> = (
     }
 
     map.invalidateSize();
-  }, [incidents, sosAlerts, hotspots, showHotspotCircles, showPlacesLayer, placeFilter, liveLocation]);
+  }, [
+    incidents,
+    sosAlerts,
+    hotspots,
+    showHotspotCircles,
+    showPlacesLayer,
+    placeFilter,
+    liveLocation,
+    liveSOSList,
+    liveIncidentList,
+    liveTrackingMap
+  ]);
 
   // Explicitly Fetch Device GPS Location with Browser Permission
   const handleFetchDeviceLocation = useCallback(async (isManual = true) => {

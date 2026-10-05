@@ -1,8 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
 import path from 'path';
+import http from 'http';
 
 import authRoutes from './server/routes/authRoutes';
 import incidentRoutes from './server/routes/incidentRoutes';
@@ -10,10 +10,11 @@ import sosRoutes from './server/routes/sosRoutes';
 import hotspotRoutes from './server/routes/hotspotRoutes';
 import dashboardRoutes from './server/routes/dashboardRoutes';
 import notificationRoutes from './server/routes/notificationRoutes';
+import { setupWebSocketServer, getWebSocketStats } from './server/websocket';
 
 export const app = express();
 
-// Trust proxy for Vercel & serverless environments
+// Trust proxy for Vercel & container environments
 app.set('trust proxy', 1);
 
 // Basic security and parsing
@@ -53,17 +54,31 @@ app.use('/dashboard', dashboardRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/notifications', notificationRoutes);
 
-// Health check endpoint
+// Health check and WebSocket statistics endpoint
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', service: 'Women Safety System API', timestamp: new Date().toISOString() });
+  res.json({
+    status: 'ok',
+    service: 'Women Safety System API',
+    websockets: getWebSocketStats(),
+    timestamp: new Date().toISOString()
+  });
 });
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', service: 'Women Safety System API', timestamp: new Date().toISOString() });
+  res.json({
+    status: 'ok',
+    service: 'Women Safety System API',
+    websockets: getWebSocketStats(),
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Vite development middleware or static production fallback & listening
 async function startServer() {
   const PORT = 3000;
+  const server = http.createServer(app);
+
+  // Mount real-time WebSocket server on /ws path
+  setupWebSocketServer(server);
 
   if (process.env.VERCEL) {
     app.use((req, res) => {
@@ -84,8 +99,8 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server & WebSockets running on http://0.0.0.0:${PORT}`);
   });
 }
 
@@ -102,4 +117,3 @@ if (!process.env.VERCEL) {
 }
 
 export default app;
-

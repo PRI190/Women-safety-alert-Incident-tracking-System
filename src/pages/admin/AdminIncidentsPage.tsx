@@ -3,6 +3,7 @@ import { api } from '../../services/api';
 import { Incident, IncidentStatus } from '../../types';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { useAuth } from '../../context/AuthContext';
+import { useWebSocket } from '../../context/WebSocketContext';
 import {
   Search,
   Filter,
@@ -23,6 +24,7 @@ import { AudioVoicePlayer } from '../../components/common/AudioVoicePlayer';
 
 export const AdminIncidentsPage: React.FC = () => {
   const { showToast } = useAuth();
+  const { lastIncident } = useWebSocket();
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -38,6 +40,22 @@ export const AdminIncidentsPage: React.FC = () => {
   useEffect(() => {
     loadIncidents();
   }, [statusFilter, categoryFilter]);
+
+  // Real-Time multi-device sync
+  useEffect(() => {
+    if (lastIncident) {
+      setIncidents((prev) => {
+        const index = prev.findIndex((i) => i.id === lastIncident.id);
+        if (index !== -1) {
+          const updated = [...prev];
+          updated[index] = { ...updated[index], ...lastIncident };
+          return updated;
+        } else {
+          return [lastIncident, ...prev];
+        }
+      });
+    }
+  }, [lastIncident]);
 
   const loadIncidents = async () => {
     setLoading(true);

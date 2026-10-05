@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AlertCircle, MapPin, PhoneCall, ShieldAlert, CheckCircle2, Flame, Siren, Stethoscope, Radio, RefreshCw, LocateFixed } from 'lucide-react';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { useWebSocket } from '../../context/WebSocketContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { AudioVoicePlayer } from './AudioVoicePlayer';
 import { getCachedLocation, requestDeviceLocation, fetchDeviceLocationWithPermission, reverseGeocode } from '../../utils/geolocation';
@@ -12,6 +13,7 @@ export const triggerSOSModal = () => {
 
 export const SOSFloatingButton: React.FC = () => {
   const { user, showToast, fetchNotifications } = useAuth();
+  const { broadcastSOS, updateLiveSOSLocation } = useWebSocket();
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -108,6 +110,16 @@ export const SOSFloatingButton: React.FC = () => {
     const transcript = generateTranscript(typeToUse);
 
     try {
+      // Direct fast multi-device broadcast
+      broadcastSOS({
+        latitude: location.lat,
+        longitude: location.lng,
+        locationName: location.name,
+        emergencyType: typeToUse,
+        audioTranscript: transcript,
+        user
+      });
+
       const res = await api.sendSOS({
         latitude: location.lat,
         longitude: location.lng,

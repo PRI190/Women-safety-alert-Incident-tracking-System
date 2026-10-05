@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { SOSFloatingButton } from '../../components/common/SOSFloatingButton';
 import { ErrorBoundary } from '../../components/common/ErrorBoundary';
 import { AdminSOSAlarmBanner } from '../../components/admin/AdminSOSAlarmBanner';
+import { MultiDeviceSyncBadge } from '../../components/common/MultiDeviceSyncBadge';
 import {
   ShieldAlert,
   LayoutDashboard,
@@ -50,12 +51,15 @@ export const AdminDashboardLayout: React.FC = () => {
           </div>
           <span className="font-extrabold text-sm tracking-tight">SafeGuard Command</span>
         </Link>
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="p-2 rounded-xl text-slate-300 hover:bg-white/10"
-        >
-          {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-        </button>
+        <div className="flex items-center gap-2">
+          <MultiDeviceSyncBadge compact />
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="p-2 rounded-xl text-slate-300 hover:bg-white/10"
+          >
+            {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
+        </div>
       </div>
 
       {/* Admin Sidebar */}
@@ -66,19 +70,24 @@ export const AdminDashboardLayout: React.FC = () => {
       >
         <div className="space-y-6">
           {/* Logo */}
-          <Link to="/landing" className="flex items-center gap-2.5 px-2">
-            <div className="w-10 h-10 rounded-2xl bg-[#B91C1C] flex items-center justify-center text-white shadow-lg">
-              <ShieldAlert className="w-6 h-6" />
+          <div className="flex flex-col gap-2">
+            <Link to="/landing" className="flex items-center gap-2.5 px-2">
+              <div className="w-10 h-10 rounded-2xl bg-[#B91C1C] flex items-center justify-center text-white shadow-lg">
+                <ShieldAlert className="w-6 h-6" />
+              </div>
+              <div>
+                <span className="font-extrabold text-base text-white tracking-tight block">
+                  SafeGuard<span className="text-[#B91C1C]">112</span>
+                </span>
+                <span className="text-[10px] text-[#B91C1C] font-bold block uppercase tracking-wider">
+                  Admin Command
+                </span>
+              </div>
+            </Link>
+            <div className="px-2">
+              <MultiDeviceSyncBadge />
             </div>
-            <div>
-              <span className="font-extrabold text-base text-white tracking-tight block">
-                SafeGuard<span className="text-[#B91C1C]">112</span>
-              </span>
-              <span className="text-[10px] text-[#B91C1C] font-bold block uppercase tracking-wider">
-                Admin Command
-              </span>
-            </div>
-          </Link>
+          </div>
 
           {/* Nav Items */}
           <nav className="space-y-1.5 pt-2">
