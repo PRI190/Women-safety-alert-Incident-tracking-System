@@ -23,10 +23,26 @@ const clients = new Map<string, ConnectedClient>();
 let wssInstance: WebSocketServer | null = null;
 
 export function setupWebSocketServer(httpServer: http.Server): WebSocketServer {
-  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  const wss = new WebSocketServer({ noServer: true });
   wssInstance = wss;
 
-  console.log('[WebSocket] Server mounted on path /ws');
+  console.log('[WebSocket] Server mounted with flexible upgrade handler (/ws, /socket, /api/ws)');
+
+  httpServer.on('upgrade', (req, socket, head) => {
+    const rawUrl = req.url || '';
+    const pathname = rawUrl.split('?')[0].replace(/\/+$/, '') || '/';
+
+    if (
+      pathname === '/ws' ||
+      pathname === '/socket' ||
+      pathname === '/api/ws' ||
+      pathname.endsWith('/ws')
+    ) {
+      wss.handleUpgrade(req, socket, head, (ws) => {
+        wss.emit('connection', ws, req);
+      });
+    }
+  });
 
   wss.on('connection', (ws: WebSocket, req) => {
     const clientId = `client-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
@@ -78,18 +94,22 @@ export function setupWebSocketServer(httpServer: http.Server): WebSocketServer {
     });
   });
 
-  // Keep-alive heartbeat interval every 30 seconds
+  // Keep-alive heartbeat interval every 12 seconds for cellular mobile resilience
   const interval = setInterval(() => {
     for (const [id, client] of clients.entries()) {
       if (!client.isAlive) {
-        client.ws.terminate();
+        try {
+          client.ws.terminate();
+        } catch {}
         clients.delete(id);
         continue;
       }
       client.isAlive = false;
-      client.ws.ping();
+      try {
+        client.ws.ping();
+      } catch {}
     }
-  }, 30000);
+  }, 12000);
 
   wss.on('close', () => {
     clearInterval(interval);

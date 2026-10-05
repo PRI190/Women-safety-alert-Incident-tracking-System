@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { wsClient } from '../services/websocket';
+import { wsClient, SyncMode } from '../services/websocket';
 import { SOSAlert, Incident } from '../types';
 import { useAuth } from './AuthContext';
 
@@ -13,10 +13,13 @@ interface LiveLocationData {
 
 interface WebSocketContextType {
   isConnected: boolean;
+  syncMode: SyncMode;
   onlineDevices: number;
+  latencyMs: number;
   lastSOSAlert: SOSAlert | null;
   lastIncident: Incident | null;
   liveTrackingMap: Record<string, LiveLocationData>;
+  forceReconnect: () => void;
   broadcastSOS: (sosData: any) => boolean;
   updateLiveSOSLocation: (id: string, lat: number, lng: number, locationName?: string) => boolean;
   updateSOSStatus: (id: string, status: string, notes?: string) => boolean;
@@ -28,7 +31,9 @@ const WebSocketContext = createContext<WebSocketContextType | undefined>(undefin
 export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user, showToast, fetchNotifications } = useAuth();
   const [isConnected, setIsConnected] = useState(wsClient.isConnected);
+  const [syncMode, setSyncMode] = useState<SyncMode>(wsClient.syncMode);
   const [onlineDevices, setOnlineDevices] = useState(wsClient.onlineDevices);
+  const [latencyMs, setLatencyMs] = useState(wsClient.latencyMs);
   const [lastSOSAlert, setLastSOSAlert] = useState<SOSAlert | null>(null);
   const [lastIncident, setLastIncident] = useState<Incident | null>(null);
   const [liveTrackingMap, setLiveTrackingMap] = useState<Record<string, LiveLocationData>>({});
@@ -37,19 +42,21 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
   useEffect(() => {
     wsClient.connect();
 
-    const unsubConn = wsClient.on('connection:change', ({ connected }) => {
+    const unsubConn = wsClient.on('connection:change', ({ connected, syncMode: mode }) => {
       setIsConnected(connected);
+      if (mode) setSyncMode(mode);
     });
 
     const unsubPresence = wsClient.on('presence:update', ({ onlineDevices: count }) => {
       if (typeof count === 'number') {
         setOnlineDevices(count);
       }
+      setLatencyMs(wsClient.latencyMs);
     });
 
     // Real-Time SOS Created across any device
     const unsubSOSCreated = wsClient.on('sos:created', (sos: SOSAlert) => {
-      console.log('[WebSocket] Real-time SOS alert received:', sos);
+      console.log('[RealTime] Real-time SOS alert received:', sos);
       setLastSOSAlert(sos);
       fetchNotifications();
 
@@ -112,6 +119,10 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
   }, [user]);
 
+  const forceReconnect = () => {
+    wsClient.forceReconnect();
+  };
+
   const broadcastSOS = (sosData: any) => {
     return wsClient.triggerSOS(sosData);
   };
@@ -132,10 +143,13 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
     <WebSocketContext.Provider
       value={{
         isConnected,
+        syncMode,
         onlineDevices,
+        latencyMs,
         lastSOSAlert,
         lastIncident,
         liveTrackingMap,
+        forceReconnect,
         broadcastSOS,
         updateLiveSOSLocation,
         updateSOSStatus,
@@ -165,7 +179,7 @@ function playEmergencyBeep() {
     const gain = ctx.createGain();
 
     osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(880, ctx.currentTime); // High pitch alert A5
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
     osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.35);
 
     gain.gain.setValueAtTime(0.3, ctx.currentTime);

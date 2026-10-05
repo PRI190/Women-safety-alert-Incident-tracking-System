@@ -11,6 +11,7 @@ import hotspotRoutes from './server/routes/hotspotRoutes';
 import dashboardRoutes from './server/routes/dashboardRoutes';
 import notificationRoutes from './server/routes/notificationRoutes';
 import { setupWebSocketServer, getWebSocketStats } from './server/websocket';
+import { db } from './server/db';
 
 export const app = express();
 
@@ -69,6 +70,37 @@ app.get('/health', (req, res) => {
     service: 'Women Safety System API',
     websockets: getWebSocketStats(),
     timestamp: new Date().toISOString()
+  });
+});
+
+// Fallback real-time synchronization endpoint for mobile phones where WebSocket handshakes are blocked by cellular NAT
+app.get(['/api/realtime/sync', '/realtime/sync'], (req, res) => {
+  const since = req.query.since ? String(req.query.since) : undefined;
+  const incidents = db.get('incidents') || [];
+  const sosAlerts = db.get('sosAlerts') || [];
+  const wsStats = getWebSocketStats();
+
+  let filteredIncidents = incidents;
+  let filteredSOS = sosAlerts;
+
+  if (since) {
+    const sinceTime = new Date(since).getTime();
+    if (!isNaN(sinceTime)) {
+      filteredIncidents = incidents.filter(
+        (i) => new Date(i.updatedAt || i.createdAt).getTime() > sinceTime
+      );
+      filteredSOS = sosAlerts.filter(
+        (s) => new Date(s.resolvedAt || s.time).getTime() > sinceTime
+      );
+    }
+  }
+
+  res.json({
+    ok: true,
+    serverTime: new Date().toISOString(),
+    onlineDevices: Math.max(wsStats.totalClients, 1),
+    incidents: filteredIncidents.slice(0, 10),
+    sosAlerts: filteredSOS.slice(0, 10)
   });
 });
 
