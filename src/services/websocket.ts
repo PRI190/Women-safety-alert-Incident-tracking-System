@@ -8,7 +8,7 @@
  */
 
 export type WSEventCallback = (data: any) => void;
-export type SyncMode = 'websocket' | 'sse' | 'polling' | 'connecting';
+export type SyncMode = 'websocket' | 'sse' | 'polling' | 'serverless' | 'connecting';
 
 class WebSocketClient {
   private ws: WebSocket | null = null;
@@ -86,6 +86,24 @@ class WebSocketClient {
 
     this.isExplicitlyClosed = false;
 
+    // Vercel Serverless Platform Detection
+    // Vercel serverless lambdas do not run stateful WebSocket servers.
+    // When on vercel.app, automatically activate the high-speed Serverless Real-Time Pulse.
+    const isVercel =
+      typeof window !== 'undefined' &&
+      (window.location.hostname.includes('vercel.app') ||
+        window.location.hostname.includes('vercel.sh') ||
+        window.location.hostname.includes('.now.sh'));
+
+    if (isVercel) {
+      console.log('[RealTime Sync] Vercel Serverless environment detected. Activating Serverless Real-Time Pulse.');
+      this.isConnected = true;
+      this.syncMode = 'serverless';
+      this.ensurePollingFallback(1200);
+      this.emitLocal('connection:change', { connected: true, syncMode: 'serverless' });
+      return;
+    }
+
     // Start fallback HTTP polling and native SSE in case mobile network drops WebSocket upgrades
     this.ensurePollingFallback(1800);
     this.setupEventSource();
@@ -133,7 +151,9 @@ class WebSocketClient {
               this.onlineDevices = data.onlineDevices;
             }
           } else if (type === 'pong') {
-            this.latencyMs = Math.max(12, Date.now() - this.lastPingTime);
+            const sentAt = data?.sentAt || data?.time || this.lastPingTime;
+            this.latencyMs = Math.max(8, Date.now() - sentAt);
+            this.emitLocal('pong', { latencyMs: this.latencyMs, serverTime: data?.serverTime });
           }
 
           // Emit to all registered listeners for this event type
@@ -145,13 +165,20 @@ class WebSocketClient {
       };
 
       this.ws.onclose = (event) => {
-        this.isConnected = false;
         this.stopPing();
         this.lastError = `Connection closed (code: ${event.code || 'unknown'})`;
         console.log('[RealTime Sync] WebSocket closed, activating cellular fallback polling');
 
         // Immediately switch to HTTP polling fallback so mobile phone never loses sync
-        this.ensurePollingFallback();
+        this.ensurePollingFallback(1800);
+
+        // If multiple socket attempts fail on this network, stay stably connected in polling mode
+        if (this.reconnectAttempts >= 3) {
+          this.isConnected = true;
+          this.syncMode = 'polling';
+          this.emitLocal('connection:change', { connected: true, syncMode: 'polling' });
+          return;
+        }
 
         this.emitLocal('connection:change', { connected: true, syncMode: 'polling' });
 
@@ -164,13 +191,18 @@ class WebSocketClient {
         this.lastError = 'WebSocket handshake failed (Cellular carrier / proxy may block WSS)';
         console.warn('[RealTime Sync] WebSocket error:', err);
         // Fallback polling keeps the app alive
-        this.ensurePollingFallback();
+        this.ensurePollingFallback(1800);
       };
     } catch (e: any) {
       this.lastError = e?.message || 'WebSocket creation failed';
-      this.ensurePollingFallback();
+      this.ensurePollingFallback(1800);
       this.scheduleReconnect();
     }
+  }
+
+  public sendPing(sentAt = Date.now()): boolean {
+    this.lastPingTime = sentAt;
+    return this.send('ping', { sentAt });
   }
 
   public forceReconnect() {

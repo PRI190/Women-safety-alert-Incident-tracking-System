@@ -201,7 +201,13 @@ function handleClientMessage(client: ConnectedClient, msg: WSMessage) {
     }
 
     case 'ping': {
-      sendToSocket(client.ws, { type: 'pong', data: { time: Date.now() } });
+      sendToSocket(client.ws, {
+        type: 'pong',
+        data: {
+          sentAt: data?.sentAt || Date.now(),
+          serverTime: Date.now()
+        }
+      });
       break;
     }
 

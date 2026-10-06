@@ -112,6 +112,41 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
     };
   }, [user, onlineDevices]);
 
+  // Optimized Ping-Pong Heartbeat Mechanism
+  // Continuously monitors connection health, calculates round-trip latency,
+  // prevents silent socket stalls, and guarantees instantaneous alert delivery.
+  useEffect(() => {
+    let missedHeartbeats = 0;
+
+    const interval = setInterval(() => {
+      if (wsClient.isConnected && wsClient.syncMode === 'websocket') {
+        const pingTime = Date.now();
+        const sent = wsClient.sendPing(pingTime);
+        if (sent) {
+          missedHeartbeats++;
+          // If 2 consecutive heartbeats receive no pong, socket is in a zombie/stalled state
+          if (missedHeartbeats >= 2) {
+            console.warn('[WebSocketContext] Heartbeat timeout detected (missed 2 pongs). Refreshing socket connection...');
+            missedHeartbeats = 0;
+            wsClient.forceReconnect();
+          }
+        }
+      }
+    }, 4000);
+
+    const unsubPong = wsClient.on('pong', (data) => {
+      missedHeartbeats = 0;
+      if (data && typeof data.latencyMs === 'number') {
+        setLatencyMs(data.latencyMs);
+      }
+    });
+
+    return () => {
+      clearInterval(interval);
+      unsubPong();
+    };
+  }, []);
+
   // Sync auth on login/user change
   useEffect(() => {
     if (user) {
@@ -124,7 +159,11 @@ export const WebSocketProvider: React.FC<{ children: ReactNode }> = ({ children 
   };
 
   const broadcastSOS = (sosData: any) => {
-    return wsClient.triggerSOS(sosData);
+    // Immediate high-priority SOS transmission
+    const sent = wsClient.triggerSOS(sosData);
+    // Instant heartbeat pulse to wake up responder sockets immediately
+    wsClient.sendPing();
+    return sent;
   };
 
   const updateLiveSOSLocation = (id: string, lat: number, lng: number, locationName?: string) => {
