@@ -22,6 +22,7 @@ class WebSocketClient {
   private isExplicitlyClosed = false;
   private lastSyncTime: string = new Date(Date.now() - 3600000).toISOString();
   private lastPingTime: number = Date.now();
+  private seenSOSStatuses: Map<string, string> = new Map();
 
   public isConnected = false;
   public syncMode: SyncMode = 'connecting';
@@ -31,6 +32,14 @@ class WebSocketClient {
   public lastError: string | null = null;
 
   constructor() {
+    if (typeof window !== 'undefined') {
+      let savedId = localStorage.getItem('womensafety_device_id');
+      if (!savedId) {
+        savedId = 'dev-' + Math.random().toString(36).substring(2, 9);
+        localStorage.setItem('womensafety_device_id', savedId);
+      }
+      this.clientId = savedId;
+    }
     this.setupUrl();
     this.setupMobileLifecycleListeners();
   }
@@ -76,12 +85,15 @@ class WebSocketClient {
     }
 
     this.isExplicitlyClosed = false;
-    this.syncMode = 'connecting';
-    this.emitLocal('connection:change', { connected: false, syncMode: 'connecting' });
 
     // Start fallback HTTP polling and native SSE in case mobile network drops WebSocket upgrades
-    this.ensurePollingFallback();
+    this.ensurePollingFallback(1800);
     this.setupEventSource();
+
+    if (!this.isConnected) {
+      this.syncMode = 'connecting';
+      this.emitLocal('connection:change', { connected: false, syncMode: 'connecting' });
+    }
 
     try {
       this.ws = new WebSocket(this.url);
@@ -93,8 +105,8 @@ class WebSocketClient {
         this.lastError = null;
         console.log('[RealTime Sync] WebSocket connected to', this.url);
 
-        // Turn off polling fallback since native WebSocket is active
-        this.stopPollingFallback();
+        // Keep gentle background polling as resilient safety net
+        this.ensurePollingFallback(4000);
 
         // Authenticate socket
         this.sendAuth();
@@ -271,16 +283,18 @@ class WebSocketClient {
    * HTTP Real-Time Polling Fallback
    * Ensures mobile phones sync continuously even when cellular carriers restrict WebSockets.
    */
-  private ensurePollingFallback() {
-    if (this.pollingInterval) return;
+  private ensurePollingFallback(intervalMs = 1800) {
+    if (this.pollingInterval) {
+      clearInterval(this.pollingInterval);
+    }
 
-    this.syncMode = 'polling';
-    this.emitLocal('connection:change', { connected: true, syncMode: 'polling' });
+    if (!this.isConnected) {
+      this.syncMode = 'polling';
+    }
 
-    // Poll every 2.5 seconds
     this.pollingInterval = setInterval(() => {
       this.executePollingSync();
-    }, 2500);
+    }, intervalMs);
 
     // Run first sync immediately
     this.executePollingSync();
@@ -295,13 +309,26 @@ class WebSocketClient {
 
   private async executePollingSync() {
     try {
-      const res = await fetch(`/api/realtime/sync?since=${encodeURIComponent(this.lastSyncTime)}`, {
-        cache: 'no-store'
+      const url = `/api/realtime/sync?since=${encodeURIComponent(this.lastSyncTime)}&deviceId=${encodeURIComponent(this.clientId)}`;
+      const res = await fetch(url, {
+        cache: 'no-store',
+        headers: {
+          'x-device-id': this.clientId
+        }
       });
       if (!res.ok) return;
 
       const data = await res.json();
       if (!data) return;
+
+      // When WebSocket is not OPEN, ensure device is reported connected via polling
+      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+        if (!this.isConnected || this.syncMode !== 'polling') {
+          this.isConnected = true;
+          this.syncMode = 'polling';
+          this.emitLocal('connection:change', { connected: true, syncMode: 'polling' });
+        }
+      }
 
       if (typeof data.onlineDevices === 'number') {
         this.onlineDevices = data.onlineDevices;
@@ -312,10 +339,17 @@ class WebSocketClient {
         this.lastSyncTime = data.serverTime;
       }
 
-      // Dispatch new SOS alerts received via HTTP sync
+      // Process and dispatch incoming SOS alerts with state change detection
       if (Array.isArray(data.sosAlerts)) {
         data.sosAlerts.forEach((sos: any) => {
-          this.emitLocal('sos:created', sos);
+          const prevStatus = this.seenSOSStatuses.get(sos.id);
+          if (!prevStatus) {
+            this.seenSOSStatuses.set(sos.id, sos.status);
+            this.emitLocal('sos:created', sos);
+          } else if (prevStatus !== sos.status) {
+            this.seenSOSStatuses.set(sos.id, sos.status);
+            this.emitLocal('sos:updated', sos);
+          }
         });
       }
 

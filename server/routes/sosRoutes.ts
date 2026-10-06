@@ -90,19 +90,22 @@ router.get('/', optionalAuthenticateToken, (req: AuthRequest, res: Response) => 
   const sosAlerts = db.get('sosAlerts') || [];
   const role = req.user?.role;
   const userId = req.user?.id;
+  const { all, myOnly } = req.query;
 
-  if (role === 'admin') {
+  // Always return all SOS alerts for admins, command centers, or when requested with ?all=true
+  if (role === 'admin' || all === 'true' || req.query.admin === 'true' || !userId) {
     return res.json(sosAlerts);
   }
 
-  if (!userId) {
-    return res.json(sosAlerts);
+  if (myOnly === 'true') {
+    const userSOS = sosAlerts.filter(
+      (s) => s.userId === userId || (userId === 'poiu' && (s.userId === 'poiu' || s.userId === 'usr-demo-1'))
+    );
+    return res.json(userSOS);
   }
 
-  const userSOS = sosAlerts.filter(
-    (s) => s.userId === userId || (userId === 'poiu' && (s.userId === 'poiu' || s.userId === 'usr-demo-1'))
-  );
-  return res.json(userSOS.length > 0 ? userSOS : sosAlerts);
+  // Default to returning all active alerts or all alerts
+  return res.json(sosAlerts);
 });
 
 // PUT /api/sos/:id (update status to DISPATCHED or RESOLVED)

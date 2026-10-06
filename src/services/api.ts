@@ -374,7 +374,7 @@ export const api = {
 
   async getSOSAlerts(): Promise<SOSAlert[]> {
     try {
-      const res = await fetch(`${API_BASE}/sos`, {
+      const res = await fetch(`${API_BASE}/sos?all=true`, {
         headers: getAuthHeaders()
       });
       return await handleResponse(res);

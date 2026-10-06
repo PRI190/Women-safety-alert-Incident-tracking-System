@@ -18,10 +18,16 @@ export const AdminSOSAlarmBanner: React.FC = () => {
   const fetchActiveSOS = async () => {
     try {
       const allSOS = await api.getSOSAlerts();
-      const active = (allSOS || []).filter((s) => s.status === 'ACTIVE' || s.status === 'DISPATCHED');
+      const active = (allSOS || []).filter((s) => {
+        const st = (s.status || '').toUpperCase();
+        return st === 'ACTIVE' || st === 'DISPATCHED' || st === 'PENDING';
+      });
       setActiveAlerts(active);
 
-      const unhandledActive = active.filter((s) => s.status === 'ACTIVE');
+      const unhandledActive = active.filter((s) => {
+        const st = (s.status || '').toUpperCase();
+        return st === 'ACTIVE' || st === 'PENDING';
+      });
 
       // Trigger siren if unhandled ACTIVE SOS exists and audio is not muted
       if (unhandledActive.length > 0 && !isAudioMuted) {
@@ -37,7 +43,6 @@ export const AdminSOSAlarmBanner: React.FC = () => {
 
       // Check if new SOS arrived
       if (unhandledActive.length > prevActiveCountRef.current) {
-        // Browser desktop notification if supported
         if ('Notification' in window && Notification.permission === 'granted') {
           new Notification('🚨 CRITICAL SOS ALERT RECEIVED!', {
             body: `Emergency signal from ${unhandledActive[0].userName}. Service: ${unhandledActive[0].emergencyType}`,
@@ -51,20 +56,41 @@ export const AdminSOSAlarmBanner: React.FC = () => {
     }
   };
 
+  // React immediately whenever an SOS event is pushed via WebSockets or SSE
   useEffect(() => {
-    // Request browser notification permission once
+    if (lastSOSAlert) {
+      const st = (lastSOSAlert.status || '').toUpperCase();
+      if (st === 'ACTIVE' || st === 'DISPATCHED' || st === 'PENDING') {
+        setActiveAlerts((prev) => {
+          const exists = prev.some((a) => a.id === lastSOSAlert.id);
+          if (exists) {
+            return prev.map((a) => (a.id === lastSOSAlert.id ? lastSOSAlert : a));
+          }
+          return [lastSOSAlert, ...prev];
+        });
+        if (!isAudioMuted) {
+          startEmergencySiren();
+          setIsAudioAllowed(true);
+        }
+      } else if (st === 'RESOLVED' || st === 'CANCELLED') {
+        setActiveAlerts((prev) => prev.filter((a) => a.id !== lastSOSAlert.id));
+      }
+    }
+  }, [lastSOSAlert, isAudioMuted]);
+
+  useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
     }
 
     fetchActiveSOS();
-    const interval = setInterval(fetchActiveSOS, 3500);
+    const interval = setInterval(fetchActiveSOS, 2000);
 
     return () => {
       clearInterval(interval);
       stopEmergencySiren();
     };
-  }, [isAudioMuted, lastSOSAlert]);
+  }, [isAudioMuted]);
 
   const handleToggleMute = () => {
     if (isAudioMuted) {

@@ -73,20 +73,43 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Track active HTTP devices for multi-device presence even without raw WebSockets
+const activeHttpDevices = new Map<string, number>();
+
 // Server-Sent Events (SSE) stream endpoint for cellular networks and proxies blocking WebSockets
 app.get(['/api/realtime/stream', '/realtime/stream', '/api/events'], (req, res) => {
   registerSSEClient(res);
 });
 
-// Fallback real-time synchronization endpoint for mobile phones where WebSocket handshakes are blocked by cellular NAT
+// Robust real-time synchronization endpoint for mobile phones and cross-device sync
 app.get(['/api/realtime/sync', '/realtime/sync'], (req, res) => {
   const since = req.query.since ? String(req.query.since) : undefined;
+  const deviceId = (req.query.deviceId as string) || (req.headers['x-device-id'] as string) || req.ip || 'dev';
+  const now = Date.now();
+
+  activeHttpDevices.set(deviceId, now);
+  for (const [id, lastSeen] of activeHttpDevices.entries()) {
+    if (now - lastSeen > 15000) {
+      activeHttpDevices.delete(id);
+    }
+  }
+
   const incidents = db.get('incidents') || [];
   const sosAlerts = db.get('sosAlerts') || [];
   const wsStats = getWebSocketStats();
 
   let filteredIncidents = incidents;
-  let filteredSOS = sosAlerts;
+
+  // Active or dispatched SOS alerts are ALWAYS returned so no responder ever misses an ongoing emergency
+  const ongoingSOS = sosAlerts.filter((s) => {
+    const st = (s.status || '').toUpperCase();
+    return st === 'ACTIVE' || st === 'DISPATCHED' || st === 'PENDING';
+  });
+
+  let otherSOS = sosAlerts.filter((s) => {
+    const st = (s.status || '').toUpperCase();
+    return st !== 'ACTIVE' && st !== 'DISPATCHED' && st !== 'PENDING';
+  });
 
   if (since) {
     const sinceTime = new Date(since).getTime();
@@ -94,18 +117,27 @@ app.get(['/api/realtime/sync', '/realtime/sync'], (req, res) => {
       filteredIncidents = incidents.filter(
         (i) => new Date(i.updatedAt || i.createdAt).getTime() > sinceTime
       );
-      filteredSOS = sosAlerts.filter(
+      otherSOS = otherSOS.filter(
         (s) => new Date(s.resolvedAt || s.time).getTime() > sinceTime
       );
     }
   }
 
+  const combinedSOSMap = new Map<string, any>();
+  for (const s of [...ongoingSOS, ...otherSOS]) {
+    combinedSOSMap.set(s.id, s);
+  }
+  const combinedSOS = Array.from(combinedSOSMap.values());
+
+  const totalConnected = Math.max(wsStats.totalClients, activeHttpDevices.size, 1);
+
   res.json({
     ok: true,
     serverTime: new Date().toISOString(),
-    onlineDevices: Math.max(wsStats.totalClients, 1),
-    incidents: filteredIncidents.slice(0, 10),
-    sosAlerts: filteredSOS.slice(0, 10)
+    onlineDevices: totalConnected,
+    incidents: filteredIncidents.slice(0, 15),
+    sosAlerts: combinedSOS.slice(0, 15),
+    activeEmergencyCount: ongoingSOS.length
   });
 });
 
